@@ -1,0 +1,1620 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Advanced MP3 Player</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Font Awesome for icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+    <!-- jsmediatags library for reading MP3 metadata -->
+    <script src="https://cdn.jsdelivr.net/npm/jsmediatags@3.9.7/dist/jsmediatags.min.js"></script>
+    <style>
+        /* Base styles for the progress bar and volume slider thumbs */
+        input[type="range"]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 16px;
+            height: 16px;
+            border-radius: 50%;
+            cursor: pointer;
+            box-shadow: 0 0 0 4px rgba(var(--accent-rgb), 0.4);
+            transition: background 0.15s ease-in-out, box-shadow 0.15s ease-in-out;
+        }
+
+        input[type="range"]::-moz-range-thumb {
+            width: 16px;
+            height: 16px;
+            border-radius: 50%;
+            cursor: pointer;
+            box-shadow: 0 0 0 4px rgba(var(--accent-rgb), 0.4);
+            transition: background 0.15s ease-in-out, box-shadow 0.15s ease-in-out;
+        }
+
+        /* Set Inter font */
+        body {
+            font-family: 'Inter', sans-serif;
+            transition: background-color 0.3s ease;
+            /* Adjusted for more top alignment */
+            align-items: flex-start; /* Align content to the top */
+            padding-top: 2rem; /* Add some padding at the top */
+            min-height: 100vh; /* Ensure body takes full viewport height for centering logic */
+        }
+
+        /* Styles for scrollbar in playlist for better aesthetics */
+        #playlist-items::-webkit-scrollbar {
+            width: 8px;
+        }
+
+        #playlist-items::-webkit-scrollbar-track {
+            background: var(--bg-secondary);
+            border-radius: 10px;
+        }
+
+        #playlist-items::-webkit-scrollbar-thumb {
+            background: var(--text-muted);
+            border-radius: 10px;
+        }
+
+        #playlist-items::-webkit-scrollbar-thumb:hover {
+            background: var(--text-light);
+        }
+
+        /* Theme Variables (Default Light) */
+        :root {
+            --bg-primary: #ffffff;
+            --bg-secondary: #f1f5f9; /* slate-100 */
+            --text-primary: #1f2937; /* gray-900 */
+            --text-secondary: #4b5563; /* gray-700 */
+            --text-muted: #9ca3af; /* gray-400 */
+            --border-color: #e5e7eb; /* gray-200 */
+            --accent-main: #8B5CF6; /* purple-500 (default static) */
+            --accent-hover: #7C3AED;
+            --accent-bg-light: #f3e8ff;
+            --accent-rgb: 139, 92, 246;
+            --progress-track: #e0bbff;
+        }
+
+        /* Dark Mode Variables */
+        body.dark-mode {
+            --bg-primary: #1a202c; /* dark gray */
+            --bg-secondary: #2d3748; /* darker gray */
+            --text-primary: #f7fafc; /* light gray */
+            --text-secondary: #a0aec0; /* medium gray */
+            --text-muted: #cbd5e0; /* lighter gray */
+            --border-color: #4a5568; /* darker gray border */
+            --accent-main: #9F7AEA; /* slightly lighter purple for visibility */
+            --accent-hover: #B794F4;
+            --accent-bg-light: #4c2c77;
+            --accent-rgb: 159, 122, 234;
+            --progress-track: #5d3f82;
+        }
+
+        /* Apply theme variables */
+        .player-container {
+            background-color: var(--bg-primary);
+            color: var(--text-primary);
+            border-color: var(--border-color);
+            max-height: 90vh; /* Ensure the player container itself doesn't exceed viewport height */
+        }
+        .text-gray-900 { color: var(--text-primary); }
+        .text-gray-800 { color: var(--text-primary); }
+        .text-gray-600 { color: var(--text-secondary); }
+        .text-gray-500 { color: var(--text-secondary); }
+        .text-gray-700 { color: var(--text-secondary); }
+
+        .tab-button.active {
+            background-color: var(--accent-main);
+            color: white;
+        }
+        .tab-button:not(.active):hover {
+            background-color: var(--bg-secondary);
+        }
+
+        .bg-purple-600 { background-color: var(--accent-main); }
+        .hover\:bg-purple-700:hover { background-color: var(--accent-hover); }
+        .text-purple-600 { color: var(--accent-main); }
+        .hover\:text-purple-600:hover { color: var(--accent-hover); }
+        .focus\:ring-purple-500:focus { --tw-ring-color: var(--accent-main); }
+        .bg-purple-200 { background-color: var(--progress-track); }
+        .bg-purple-100 { background-color: var(--accent-bg-light); }
+        .text-purple-800 { color: var(--accent-main); } /* Use accent-main for strong text too */
+
+        /* Custom accent colors (static presets) */
+        .accent-purple { --accent-main: #8B5CF6; --accent-hover: #7C3AED; --accent-bg-light: #f3e8ff; --accent-rgb: 139, 92, 246; --progress-track: #e0bbff;}
+        .accent-blue { --accent-main: #3B82F6; --accent-hover: #2563EB; --accent-bg-light: #DBEAFE; --accent-rgb: 59, 130, 246; --progress-track: #BFDBFE;}
+        .accent-green { --accent-main: #10B981; --accent-hover: #059669; --accent-bg-light: #D1FAE5; --accent-rgb: 16, 185, 129; --progress-track: #A7F3D0;}
+        .accent-red { --accent-main: #EF4444; --accent-hover: #DC2626; --accent-bg-light: #FEE2E2; --accent-rgb: 239, 68, 68; --progress-track: #FECACA;}
+
+        /* Apply these generic classes to elements that should adapt to accent colors */
+        .apply-accent-color {
+            background-color: var(--accent-main);
+        }
+        .apply-accent-hover:hover {
+            background-color: var(--accent-hover);
+        }
+        .apply-accent-text {
+            color: var(--accent-main);
+        }
+        .apply-accent-text-hover:hover {
+            color: var(--accent-hover);
+        }
+        .apply-accent-ring:focus {
+            --tw-ring-color: var(--accent-main);
+        }
+        .apply-accent-bg-light {
+            background-color: var(--accent-bg-light);
+        }
+        .apply-progress-track {
+            background-color: var(--progress-track);
+        }
+
+        /* Styles for range input thumbs to use dynamic/static accent variables */
+        .dynamic-thumb::-webkit-slider-thumb {
+            background-color: var(--accent-main);
+            box-shadow: 0 0 0 4px rgba(var(--accent-rgb), 0.4);
+        }
+        .dynamic-thumb::-moz-range-thumb {
+            background-color: var(--accent-main);
+            box-shadow: 0 0 0 4px rgba(var(--accent-rgb), 0.4);
+        }
+        .dynamic-thumb::-webkit-slider-thumb:hover {
+            background-color: var(--accent-hover);
+            box-shadow: 0 0 0 6px rgba(var(--accent-rgb), 0.6);
+        }
+        .dynamic-thumb::-moz-range-thumb:hover {
+            background-color: var(--accent-hover);
+            box-shadow: 0 0 0 6px rgba(var(--accent-rgb), 0.6);
+        }
+
+        /* Custom Context Menu Styles */
+        #custom-context-menu {
+            position: absolute;
+            background-color: var(--bg-primary);
+            border: 1px solid var(--border-color);
+            border-radius: 0.5rem;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            z-index: 1000;
+            min-width: 150px;
+            overflow: hidden;
+            padding: 0.25rem 0;
+        }
+
+        #custom-context-menu ul {
+            list-style: none;
+            padding: 0;
+            margin: 0;
+        }
+
+        #custom-context-menu li {
+            padding: 0.75rem 1rem;
+            cursor: pointer;
+            color: var(--text-primary);
+            transition: background-color 0.15s ease-in-out;
+            display: flex;
+            align-items: center;
+        }
+
+        #custom-context-menu li i {
+            margin-right: 0.75rem;
+            color: var(--text-secondary);
+        }
+
+        #custom-context-menu li:hover {
+            background-color: var(--bg-secondary);
+        }
+
+        /* Now Playing Animation Styles */
+        .now-playing-animation {
+            display: inline-flex; /* Use inline-flex to keep it next to text */
+            align-items: flex-end; /* Align bars to the bottom */
+            height: 16px; /* Adjust height as needed */
+            width: 16px; /* Adjust width as needed */
+            margin-right: 8px; /* Space *before* text */
+            vertical-align: middle; /* Align vertically with text */
+            overflow: hidden; /* Hide overflow from animation */
+        }
+
+        .now-playing-animation .bar {
+            width: 4px; /* Width of each bar */
+            height: 4px; /* Initial height */
+            background-color: var(--accent-main); /* Match accent color */
+            margin: 0 1px; /* Space between bars */
+            animation: bounce 0.6s ease-in-out infinite alternate;
+        }
+
+        .now-playing-animation .bar:nth-child(2) {
+            animation-delay: 0.15s; /* Stagger animation */
+        }
+
+        .now-playing-animation .bar:nth-child(3) {
+            animation-delay: 0.3s; /* Stagger animation */
+        }
+
+        @keyframes bounce {
+            0% {
+                transform: scaleY(0.3); /* Start small */
+                height: 4px;
+            }
+            100% {
+                transform: scaleY(1); /* Grow to full height */
+                height: 16px;
+            }
+        }
+
+        /* Ensure line breaks are respected in LLM response area */
+        #llm-response-area {
+            white-space: pre-wrap; /* Preserves whitespace and wraps lines */
+            text-align: left; /* Align text to the left for readability */
+            padding: 1rem; /* Add padding for better readability inside the scrollable area */
+            overflow-y: auto; /* Make it scrollable */
+            flex-grow: 1; /* Allow it to take up available space */
+            min-height: 100px; /* Give it a minimum height */
+            max-height: 100%; /* Important for flex-grow to work correctly and ensure it doesn't push content out */
+        }
+    </style>
+</head>
+<body class="bg-gradient-to-br from-indigo-800 to-purple-900 min-h-screen flex items-center justify-center p-4 dark-mode-gradient">
+
+    <div class="player-container rounded-xl shadow-2xl p-8 max-w-lg w-full flex flex-col h-full transform transition-all duration-300 scale-100 hover:scale-105">
+        <!-- Removed H1 for "MP3 Player" text -->
+
+        <!-- Tab Content Areas -->
+        <div id="now-playing-tab-content" class="tab-content active-tab flex flex-col h-full">
+            <!-- Album Art / Placeholder -->
+            <div class="bg-gray-200 w-48 h-48 mx-auto rounded-lg shadow-inner flex items-center justify-center mb-4">
+                <img id="album-art" src="https://placehold.co/192x192/9333ea/ffffff?text=Album+Art" alt="Album Art" class="rounded-lg w-full h-full object-cover">
+            </div>
+
+            <!-- Song Info -->
+            <div class="text-center mb-3">
+                <h2 id="song-title" class="text-2xl font-bold truncate mb-1 text-primary">Song Title</h2>
+                <p id="song-artist" class="text-lg text-secondary truncate">Artist Name</p>
+            </div>
+
+            <!-- Progress Bar -->
+            <div class="mb-4">
+                <input type="range" id="progress-bar" value="0" min="0" max="100" class="w-full h-2 rounded-lg appearance-none cursor-pointer apply-progress-track dynamic-thumb">
+                <div class="flex justify-between text-sm text-secondary mt-1">
+                    <span id="current-time">0:00</span>
+                    <span id="duration">0:00</span>
+                </div>
+            </div>
+
+            <!-- Player Controls -->
+            <div class="flex justify-center items-center space-x-6 mb-4">
+                <button id="shuffle-btn" class="text-secondary hover:apply-accent-text transition-colors duration-200 focus:outline-none focus:apply-accent-ring p-2 rounded-full">
+                    <i class="fas fa-random text-xl"></i>
+                </button>
+                <button id="prev-btn" class="text-secondary hover:apply-accent-text transition-colors duration-200 focus:outline-none focus:apply-accent-ring p-2 rounded-full">
+                    <i class="fas fa-backward text-3xl"></i>
+                </button>
+                <button id="play-pause-btn" class="apply-accent-color text-white p-4 rounded-full shadow-lg hover:apply-accent-hover transform hover:scale-105 transition-all duration-200 ease-in-out focus:outline-none focus:apply-accent-ring focus:ring-opacity-75">
+                    <i id="play-pause-icon" class="fas fa-play text-3xl"></i>
+                </button>
+                <button id="next-btn" class="text-secondary hover:apply-accent-text transition-colors duration-200 focus:outline-none focus:apply-accent-ring p-2 rounded-full">
+                    <i class="fas fa-forward text-3xl"></i>
+                </button>
+                <button id="repeat-btn" class="text-secondary hover:apply-accent-text transition-colors duration-200 focus:outline-none focus:apply-accent-ring p-2 rounded-full">
+                    <i id="repeat-icon" class="fas fa-redo-alt text-xl"></i>
+                </button>
+            </div>
+
+            <!-- Volume Control -->
+            <div class="flex items-center justify-center space-x-3 mb-4">
+                <i class="fas fa-volume-down text-secondary"></i>
+                <input type="range" id="volume-bar" value="100" min="0" max="100" class="w-1/2 h-2 bg-gray-300 rounded-lg appearance-none cursor-pointer dynamic-thumb">
+                <i class="fas fa-volume-up text-secondary"></i>
+            </div>
+
+            <!-- Gemini AI Features Button -->
+            <div class="relative flex justify-center space-x-4 mb-4 z-10">
+                <button id="ai-features-toggle-btn" class="bg-purple-600 hover:bg-purple-700 text-white font-bold py-2 px-4 rounded-lg shadow-md transition duration-200 ease-in-out transform hover:-translate-y-1 hover:shadow-lg focus:outline-none focus:ring-2 focus:ring-purple-400 focus:ring-opacity-50">
+                    <i class="fas fa-magic mr-2"></i>AI Features <i class="fas fa-chevron-down ml-2"></i>
+                </button>
+                <div id="ai-features-dropdown-menu" class="absolute top-full mt-2 w-48 bg-white dark:bg-gray-700 rounded-lg shadow-xl hidden overflow-hidden border border-border-color">
+                    <ul class="py-1">
+                        <li>
+                            <button id="get-song-info-btn" class="block w-full text-left px-4 py-2 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-600">
+                                ✨ Get Song Info
+                            </button>
+                        </li>
+                        <li>
+                            <button id="get-artist-bio-btn" class="block w-full text-left px-4 py-2 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-600">
+                                ✨ Get Artist Bio
+                            </button>
+                        </li>
+                        <li>
+                            <button id="generate-song-story-btn" class="block w-full text-left px-4 py-2 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-600">
+                                ✨ Generate Song Story
+                            </button>
+                        </li>
+                        <li>
+                            <button id="suggest-similar-btn" class="block w-full text-left px-4 py-2 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-600">
+                                ✨ Suggest Similar Vibes
+                            </button>
+                        </li>
+                        <li>
+                            <button id="explain-lyrics-btn" class="block w-full text-left px-4 py-2 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-600">
+                                ✨ Explain Lyrics
+                            </button>
+                        </li>
+                        <li>
+                            <button id="song-trivia-btn" class="block w-full text-left px-4 py-2 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-600">
+                                ✨ Song Trivia
+                            </button>
+                        </li>
+                    </ul>
+                </div>
+            </div>
+
+
+            <!-- LLM Response Display Area (scrollable and text-aligned left) -->
+            <div id="llm-response-area" class="border border-border-color rounded-lg p-4 bg-secondary mt-4 flex-grow overflow-y-auto text-secondary italic">
+                AI-generated insights will appear here.
+            </div>
+            <div id="loading-indicator" class="text-center apply-accent-text mt-2 hidden">
+                <i class="fas fa-spinner fa-spin mr-2"></i>Loading...
+            </div>
+        </div>
+
+        <div id="library-tab-content" class="tab-content hidden">
+            <h3 class="text-xl font-semibold text-center mb-4 apply-accent-text">Your Library</h3>
+            <div class="mb-4 text-center">
+                <input type="file" id="add-files-input" accept="audio/*" multiple class="hidden">
+                <button id="add-files-btn" class="bg-blue-500 hover:bg-blue-600 text-white font-bold py-2 px-4 rounded-lg shadow-md transition duration-200 ease-in-out">
+                    <i class="fas fa-plus mr-2"></i>Add Local Files
+                </button>
+                <p class="text-sm text-secondary mt-2">
+                    Select audio files from your device. For security, direct folder access is not allowed.
+                </p>
+            </div>
+            <ul id="playlist-items" class="space-y-3 max-h-64 overflow-y-auto pr-2 border border-border-color rounded-lg p-2 bg-secondary">
+                <!-- Playlist items will be injected here by JavaScript -->
+                <li class="p-3 text-secondary text-center">No songs in library. Add some!</li>
+            </ul>
+        </div>
+
+        <div id="settings-tab-content" class="tab-content hidden">
+            <h3 class="text-xl font-semibold text-center mb-4 apply-accent-text">Settings</h3>
+
+            <!-- Theme / Dark Mode Toggle -->
+            <div class="flex items-center justify-between mb-6 p-4 border border-border-color rounded-lg bg-secondary">
+                <span class="text-primary font-medium">Dark Mode</span>
+                <label for="dark-mode-toggle" class="relative inline-flex items-center cursor-pointer">
+                    <input type="checkbox" id="dark-mode-toggle" class="sr-only peer">
+                    <div class="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-300 dark:peer-focus:ring-blue-800 rounded-full peer dark:bg-gray-700 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all dark:border-gray-600 peer-checked:bg-blue-600"></div>
+                </label>
+            </div>
+
+            <!-- Dynamic Album Art Accent Toggle -->
+            <div class="flex items-center justify-between mb-6 p-4 border border-border-color rounded-lg bg-secondary">
+                <span class="text-primary font-medium">Dynamic Album Art Accent</span>
+                <label for="dynamic-accent-toggle" class="relative inline-flex items-center cursor-pointer">
+                    <input type="checkbox" id="dynamic-accent-toggle" class="sr-only peer">
+                    <div class="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-300 dark:peer-focus:ring-blue-800 rounded-full peer dark:bg-gray-700 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all dark:border-gray-600 peer-checked:bg-blue-600"></div>
+                </label>
+            </div>
+
+            <!-- Accent Color Selection -->
+            <div id="static-accent-options" class="mb-6 p-4 border border-border-color rounded-lg bg-secondary">
+                <h4 class="text-primary font-medium mb-3">Accent Color (Static)</h4>
+                <div class="flex justify-around space-x-2">
+                    <button class="w-10 h-10 rounded-full bg-purple-500 hover:ring-2 ring-offset-2 ring-purple-500 transition-all duration-200" data-accent-color="purple" title="Purple Theme"></button>
+                    <button class="w-10 h-10 rounded-full bg-blue-500 hover:ring-2 ring-offset-2 ring-blue-500 transition-all duration-200" data-accent-color="blue" title="Blue Theme"></button>
+                    <button class="w-10 h-10 rounded-full bg-green-500 hover:ring-2 ring-offset-2 ring-green-500 transition-all duration-200" data-accent-color="green" title="Green Theme"></button>
+                    <button class="w-10 h-10 rounded-full bg-red-500 hover:ring-2 ring-offset-2 ring-red-500 transition-all duration-200" data-accent-color="red" title="Red Theme"></button>
+                </div>
+            </div>
+
+            <!-- Playback Speed Control -->
+            <div class="mb-6 p-4 border border-border-color rounded-lg bg-secondary">
+                <h4 class="text-primary font-medium mb-3">Playback Speed</h4>
+                <div class="flex items-center space-x-3">
+                    <span id="playback-speed-value" class="text-primary font-semibold w-10 text-right">1.0x</span>
+                    <input type="range" id="playback-speed-bar" value="10" min="5" max="20" step="1" class="w-full h-2 bg-gray-300 rounded-lg appearance-none cursor-pointer dynamic-thumb">
+                </div>
+                <p class="text-sm text-secondary mt-2">Adjust song playback speed (0.5x to 2.0x).</p>
+            </div>
+
+            <!-- Future Settings (placeholder) -->
+            <div class="p-4 border border-border-color rounded-lg bg-secondary text-secondary text-center italic">
+                More settings coming soon!
+            </div>
+        </div>
+
+
+        <!-- Tabs Navigation -->
+        <div class="flex justify-around mt-8 border-t border-border-color pt-4">
+            <button id="tab-now-playing" class="tab-button active-tab flex-1 py-3 px-2 rounded-lg transition-colors duration-200 flex flex-col items-center mx-1">
+                <i class="fas fa-play-circle text-xl mb-1"></i>
+                <span class="text-xs font-medium">Now Playing</span>
+            </button>
+            <button id="tab-library" class="tab-button flex-1 py-3 px-2 rounded-lg transition-colors duration-200 flex flex-col items-center mx-1">
+                <i class="fas fa-music text-xl mb-1"></i>
+                <span class="text-xs font-medium">Library</span>
+            </button>
+            <button id="tab-settings" class="tab-button flex-1 py-3 px-2 rounded-lg transition-colors duration-200 flex flex-col items-center mx-1">
+                <i class="fas fa-cog text-xl mb-1"></i>
+                <span class="text-xs font-medium">Settings</span>
+            </button>
+        </div>
+    </div>
+
+    <!-- Hidden Audio Element -->
+    <audio id="audio-player" class="hidden"></audio>
+
+    <!-- Hidden Canvas for color extraction -->
+    <canvas id="color-canvas" class="hidden"></canvas>
+
+    <!-- Custom Context Menu -->
+    <div id="custom-context-menu" class="hidden">
+        <ul>
+            <li data-action="playNext"><i class="fas fa-step-forward"></i>Play Next</li>
+            <li data-action="addToQueue"><i class="fas fa-list-ul"></i>Add to Queue</li>
+            <li data-action="delete"><i class="fas fa-trash-alt"></i>Delete from Library</li>
+            <hr class="border-t border-border-color my-1">
+            <li data-action="getSongInfo"><i class="fas fa-info-circle"></i>Get Song Info (AI)</li>
+            <li data-action="getArtistBio"><i class="fas fa-user-circle"></i>Get Artist Bio (AI)</li>
+        </ul>
+    </div>
+
+    <script>
+        // Initial playlist is empty, user must add their own music
+        let playlist = [];
+
+        let originalPlaylistOrder = [...playlist]; // Keep a copy of the initial playlist order
+        let nextSongId = 1; // For assigning unique IDs to new songs, starts at 1
+
+        // Get references to DOM elements
+        const audioPlayer = document.getElementById('audio-player');
+        const songTitleEl = document.getElementById('song-title');
+        const songArtistEl = document.getElementById('song-artist');
+        const albumArtEl = document.getElementById('album-art');
+        // The crossOrigin attribute should be set here, before any src is assigned to albumArtEl
+        albumArtEl.crossOrigin = 'anonymous';
+
+        const progressBar = document.getElementById('progress-bar');
+        const currentTimeEl = document.getElementById('current-time');
+        const durationEl = document.getElementById('duration');
+        const playPauseBtn = document.getElementById('play-pause-btn');
+        const playPauseIcon = document.getElementById('play-pause-icon');
+        const prevBtn = document.getElementById('prev-btn');
+        const nextBtn = document.getElementById('next-btn');
+        const shuffleBtn = document.getElementById('shuffle-btn');
+        const repeatBtn = document.getElementById('repeat-btn');
+        const repeatIcon = document.getElementById('repeat-icon');
+        const volumeBar = document.getElementById('volume-bar');
+        const playlistItemsEl = document.getElementById('playlist-items');
+
+        // AI Features specific elements
+        const aiFeaturesToggleBtn = document.getElementById('ai-features-toggle-btn');
+        const aiFeaturesDropdownMenu = document.getElementById('ai-features-dropdown-menu');
+        const getSongInfoBtn = document.getElementById('get-song-info-btn');
+        const getArtistBioBtn = document.getElementById('get-artist-bio-btn');
+        const generateSongStoryBtn = document.getElementById('generate-song-story-btn');
+        const suggestSimilarBtn = document.getElementById('suggest-similar-btn');
+        // New AI feature buttons
+        const explainLyricsBtn = document.getElementById('explain-lyrics-btn');
+        const songTriviaBtn = document.getElementById('song-trivia-btn');
+
+
+        const llmResponseArea = document.getElementById('llm-response-area');
+        const loadingIndicator = document.getElementById('loading-indicator');
+
+        // Tab related elements
+        const tabButtons = document.querySelectorAll('.tab-button');
+        const tabContents = document.querySelectorAll('.tab-content');
+        const tabNowPlayingBtn = document.getElementById('tab-now-playing');
+        const tabLibraryBtn = document.getElementById('tab-library');
+        const tabSettingsBtn = document.getElementById('tab-settings');
+        const nowPlayingTabContent = document.getElementById('now-playing-tab-content');
+        const libraryTabContent = document.getElementById('library-tab-content');
+        const settingsTabContent = document.getElementById('settings-tab-content');
+
+        // Library Tab elements
+        const addFilesBtn = document.getElementById('add-files-btn');
+        const addFilesInput = document.getElementById('add-files-input');
+
+        // Settings Tab elements
+        const darkModeToggle = document.getElementById('dark-mode-toggle');
+        const dynamicAccentToggle = document.getElementById('dynamic-accent-toggle');
+        const staticAccentOptions = document.getElementById('static-accent-options');
+        const accentColorButtons = document.querySelectorAll('#static-accent-options [data-accent-color]');
+        const body = document.body;
+        const playerContainer = document.querySelector('.player-container');
+        // Playback speed elements
+        const playbackSpeedBar = document.getElementById('playback-speed-bar');
+        const playbackSpeedValue = document.getElementById('playback-speed-value');
+
+        // Canvas for color extraction
+        const colorCanvas = document.getElementById('color-canvas');
+        const colorCtx = colorCanvas.getContext('2d');
+
+        // Context Menu elements
+        const customContextMenu = document.getElementById('custom-context-menu');
+        let rightClickedSongId = null;
+
+        let currentSongIndex = 0;
+        let isPlaying = false;
+        let isShuffling = false;
+        let repeatMode = 0;
+
+        /**
+         * Converts RGB to HSL.
+         * Used for color manipulation to derive light/dark variants.
+         * @param {number} r - Red component (0-255).
+         * @param {number} g - Green component (0-255).
+         * @param {number} b - Blue component (0-255).
+         * @returns {number[]} HSL array [h, s, l].
+         */
+        function rgbToHsl(r, g, b) {
+            r /= 255, g /= 255, b /= 255;
+            const max = Math.max(r, g, b), min = Math.min(r, g, b);
+            let h, s, l = (max + min) / 2;
+
+            if (max === min) {
+                h = s = 0; // achromatic
+            } else {
+                const d = max - min;
+                s = l > 0.5 ? d / (2 - max - min) : d / (max + min);
+                switch (max) {
+                    case r: h = (g - b) / d + (g < b ? 6 : 0); break;
+                    case g: h = (b - r) / d + 2; break;
+                    case b: h = (r - g) / d + 4; break;
+                }
+                h /= 6;
+            }
+            return [h * 360, s * 100, l * 100];
+        }
+
+        /**
+         * Converts HSL to RGB.
+         * Used for color manipulation to derive light/dark variants.
+         * @param {number} h - Hue (0-360).
+         * @param {number} s - Saturation (0-100).
+         * @param {number} l - Lightness (0-100).
+         * @returns {number[]} RGB array [r, g, b].
+         */
+        function hslToRgb(h, s, l) {
+            h /= 360;
+            s /= 100;
+            l /= 100;
+            let r, g, b;
+
+            if (s === 0) {
+                r = g = b = l; // achromatic
+            } else {
+                const hue2rgb = (p, q, t) => {
+                    if (t < 0) t += 1;
+                    if (t > 1) t -= 1;
+                    if (t < 1 / 6) return p + (q - p) * 6 * t;
+                    if (t < 1 / 2) return q;
+                    if (t < 2 / 3) return p + (q - p) * (2 / 3 - t) * 6;
+                    return p;
+                };
+                const q = l < 0.5 ? l * (1 + s) : l + s - l * s;
+                const p = 2 * l - q;
+                r = hue2rgb(p, q, h + 1 / 3);
+                g = hue2rgb(p, q, h);
+                b = hue2rgb(p, q, h - 1 / 3);
+            }
+            return [Math.round(r * 255), Math.round(g * 255), Math.round(b * 255)];
+        }
+
+        /**
+         * Extracts a dominant color from an image URL by loading it into a temporary Image object
+         * and drawing it to a canvas. This handles cross-origin loading correctly.
+         * @param {string} imageUrl - The URL of the image to sample (can be data:URL).
+         * @returns {Promise<string|null>} A promise that resolves to an RGB string "R,G,B" or null if extraction fails.
+         */
+        function getDominantColor(imageUrl) {
+            return new Promise(resolve => {
+                // Do not attempt to get color from placeholder images
+                if (!imageUrl || imageUrl.startsWith('https://placehold.co')) {
+                    console.log("Skipping color extraction for placeholder image.");
+                    return resolve(null);
+                }
+
+                const tempImg = new Image();
+                tempImg.crossOrigin = 'anonymous'; // Essential for local images/data URIs to prevent tainting
+                tempImg.src = imageUrl;
+
+                tempImg.onload = () => {
+                    if (!tempImg.naturalWidth || !tempImg.naturalHeight) {
+                        console.warn("Temporary image loaded but has zero dimensions, cannot extract color.");
+                        return resolve(null);
+                    }
+                    colorCanvas.width = tempImg.naturalWidth;
+                    colorCanvas.height = tempImg.naturalHeight;
+                    try {
+                        colorCtx.drawImage(tempImg, 0, 0);
+                        // Sample a single pixel from the center
+                        const pixel = colorCtx.getImageData(tempImg.naturalWidth / 2, tempImg.naturalHeight / 2, 1, 1).data;
+                        const r = pixel[0];
+                        const g = pixel[1];
+                        const b = pixel[2];
+                        resolve(`${r},${g},${b}`);
+                    } catch (e) {
+                        console.error("Error drawing image to canvas or getting pixel data (likely security/CORS issue):", e);
+                        resolve(null);
+                    }
+                };
+                tempImg.onerror = (e) => {
+                    console.error("Error loading temporary image for color extraction:", e);
+                    resolve(null);
+                };
+            });
+        }
+
+        /**
+         * Applies the dynamic accent colors based on a given RGB color.
+         * @param {string} rgbString - The RGB color string (e.g., "100,150,200").
+         */
+        function applyDynamicAccent(rgbString) {
+            const root = document.documentElement;
+            const isDarkMode = body.classList.contains('dark-mode');
+
+            // First, ensure all default static accent classes are removed from the player container and body
+            playerContainer.classList.remove('accent-purple', 'accent-blue', 'accent-green', 'accent-red');
+            body.classList.remove('accent-purple', 'accent-blue', 'accent-green', 'accent-red');
+
+            if (!rgbString) {
+                console.warn("No valid RGB string provided for dynamic accent, falling back to static.");
+                const savedAccentColor = localStorage.getItem('mp3PlayerAccentColor') || 'purple';
+                applyStaticAccent(savedAccentColor); // Fallback
+                return;
+            }
+
+            let [r, g, b] = rgbString.split(',').map(Number);
+            let [h, s, l] = rgbToHsl(r, g, b);
+
+            let accentMainRgb, accentHoverRgb, accentBgLightRgb, progressTrackRgb;
+
+            if (isDarkMode) {
+                // Adjust lightness for dark mode to ensure visibility and contrast
+                // Clamp lightness between 30 and 85, and shift it up.
+                const adjustedL = Math.min(85, Math.max(30, l + 30));
+                accentMainRgb = hslToRgb(h, s, adjustedL);
+                accentHoverRgb = hslToRgb(h, s, Math.max(0, adjustedL - 15)); // Darken from new main
+                accentBgLightRgb = hslToRgb(h, s, Math.min(100, adjustedL + 15)); // Lighten from new main (less intense light background for dark mode)
+                progressTrackRgb = hslToRgb(h, s, Math.min(100, adjustedL + 10)); // Slightly lighter for track
+            } else {
+                // Original light mode logic
+                accentMainRgb = [r, g, b];
+                accentHoverRgb = hslToRgb(h, s, Math.max(0, l - 15));
+                accentBgLightRgb = hslToRgb(h, s, Math.min(100, l + 50));
+                progressTrackRgb = hslToRgb(h, s, Math.min(100, l + 30));
+            }
+
+            // Set CSS custom properties directly on the root element
+            root.style.setProperty('--accent-main', `rgb(${accentMainRgb.join(',')})`);
+            root.style.setProperty('--accent-hover', `rgb(${accentHoverRgb.join(',')})`);
+            root.style.setProperty('--accent-bg-light', `rgb(${accentBgLightRgb.join(',')})`);
+            root.style.setProperty('--accent-rgb', `${accentMainRgb.join(',')}`); // For box-shadow rgba
+            root.style.setProperty('--progress-track', `rgb(${progressTrackRgb.join(',')})`);
+
+            // Visually disable static color buttons when dynamic is active
+            staticAccentOptions.classList.add('opacity-50', 'pointer-events-none');
+            accentColorButtons.forEach(btn => btn.disabled = true);
+        }
+
+        /**
+         * Applies one of the predefined static accent colors.
+         * @param {string} colorName - The name of the predefined color (e.g., 'purple').
+         */
+        function applyStaticAccent(colorName) {
+            const root = document.documentElement;
+
+            // Clear any previously set dynamic properties
+            root.style.removeProperty('--accent-main');
+            root.style.removeProperty('--accent-hover');
+            root.style.removeProperty('--accent-bg-light');
+            root.style.removeProperty('--accent-rgb');
+            root.style.removeProperty('--progress-track');
+
+            // Remove all specific accent classes first
+            playerContainer.classList.remove('accent-purple', 'accent-blue', 'accent-green', 'accent-red');
+            body.classList.remove('accent-purple', 'accent-blue', 'accent-green', 'accent-red');
+
+            // Add the selected static accent class
+            playerContainer.classList.add(`accent-${colorName}`);
+            body.classList.add(`accent-${colorName}`); // Apply to body for global thumb styles
+
+            // Re-enable static color buttons
+            staticAccentOptions.classList.remove('opacity-50', 'pointer-events-none');
+            accentColorButtons.forEach(btn => btn.disabled = false);
+        }
+
+        /**
+         * Formats time from seconds to MM:SS string.
+         * @param {number} seconds - The time in seconds.
+         * @returns {string} Formatted time string (MM:SS).
+         */
+        function formatTime(seconds) {
+            if (isNaN(seconds) || seconds < 0) return "0:00";
+            const minutes = Math.floor(seconds / 60);
+            const remainingSeconds = Math.floor(seconds % 60);
+            return `${minutes}:${remainingSeconds < 10 ? '0' : ''}${remainingSeconds}`;
+        }
+
+        /**
+         * Loads and displays the details of the current song.
+         * Sets the audio player's source.
+         * @param {boolean} [shouldPlayImmediately=false] - Whether to start playing immediately after loading.
+         */
+        async function loadSong(shouldPlayImmediately = false) {
+            const song = playlist[currentSongIndex];
+            if (!song) {
+                // Handle empty playlist case
+                songTitleEl.textContent = "No Song Loaded";
+                songArtistEl.textContent = "Add songs to your library!";
+                albumArtEl.src = "https://placehold.co/192x192/cccccc/333333?text=No+Music";
+                progressBar.value = 0;
+                currentTimeEl.textContent = "0:00";
+                durationEl.textContent = "0:00";
+                pauseSong(); // Ensure player is paused
+                await updateAccentColors(); // Update theme even if no song
+                return;
+            }
+
+            songTitleEl.textContent = song.title;
+            songArtistEl.textContent = song.artist;
+            const newAlbumArtSrc = song.albumArt || "https://placehold.co/192x192/cccccc/333333?text=No+Art";
+
+            // Always update album art source for display
+            albumArtEl.src = newAlbumArtSrc;
+
+            // Trigger accent color update after updating album art source
+            // The updateAccentColors function will use getDominantColor which
+            // itself handles the image loading for color extraction.
+            await updateAccentColors();
+
+            audioPlayer.src = song.src;
+
+            // Wait for metadata to load to get actual duration
+            audioPlayer.onloadedmetadata = () => {
+                durationEl.textContent = formatTime(audioPlayer.duration);
+                progressBar.max = audioPlayer.duration;
+                // Fallback to playlist duration if actual audio duration is not ready or invalid
+                if (isNaN(audioPlayer.duration) || !isFinite(audioPlayer.duration)) {
+                    progressBar.max = song.duration || 0; // Use song's defined duration as fallback
+                }
+            };
+
+            audioPlayer.currentTime = 0; // Reset playback to start
+            currentTimeEl.textContent = formatTime(0); // Reset current time display
+            progressBar.value = 0; // Reset progress bar
+
+            if (shouldPlayImmediately) {
+                playSong();
+            }
+
+            updatePlaylistUI();
+        }
+
+        /**
+         * Plays the current song.
+         */
+        function playSong() {
+            if (audioPlayer.paused) { // Only play if currently paused
+                const playPromise = audioPlayer.play();
+                if (playPromise !== undefined) {
+                    playPromise.then(() => {
+                        isPlaying = true;
+                        playPauseIcon.classList.remove('fa-play');
+                        playPauseIcon.classList.add('fa-pause');
+                        updatePlaylistUI(); // Update UI for "Now Playing" animation
+                    }).catch(error => {
+                        console.error("Error playing audio:", error);
+                        llmResponseArea.textContent = "Error playing song. Please check the console for details and ensure audio files are accessible and compatible (e.g., MP3).";
+                        pauseSong(); // Ensure UI is consistent if play fails
+                    });
+                }
+            }
+        }
+
+        /**
+         * Pauses the current song.
+         */
+        function pauseSong() {
+            if (!audioPlayer.paused) { // Only pause if currently playing
+                audioPlayer.pause();
+                isPlaying = false;
+                playPauseIcon.classList.remove('fa-pause');
+                playPauseIcon.classList.add('fa-play');
+                updatePlaylistUI(); // Update UI for "Now Playing" animation
+            }
+        }
+
+        /**
+         * Toggles between play and pause.
+         */
+        function togglePlayPause() {
+            if (playlist.length === 0) {
+                llmResponseArea.textContent = "Please add songs to your library first!";
+                llmResponseArea.classList.add('text-center'); // Re-center for generic messages
+                return;
+            }
+            if (isPlaying) {
+                pauseSong();
+            } else {
+                playSong();
+            }
+        }
+
+        /**
+         * Plays the next song in the playlist based on shuffle/repeat mode.
+         */
+        function nextSong() {
+            if (playlist.length === 0) return;
+
+            if (repeatMode === 2) { // Repeat one
+                loadSong(true); // Re-load and play current song
+            } else if (isShuffling) {
+                let newIndex;
+                do {
+                    newIndex = Math.floor(Math.random() * playlist.length);
+                } while (newIndex === currentSongIndex && playlist.length > 1); // Ensure different song if more than one
+                currentSongIndex = newIndex;
+                loadSong(true);
+            } else { // No shuffle or repeat all
+                currentSongIndex++;
+                if (currentSongIndex >= playlist.length) {
+                    if (repeatMode === 1) { // Repeat all
+                        currentSongIndex = 0; // Loop back to the start
+                    } else { // No repeat, stop playback
+                        currentSongIndex = 0; // Reset to first song
+                        loadSong(); // Load first song without playing
+                        pauseSong(); // Ensure it's paused
+                        return;
+                    }
+                }
+                loadSong(true);
+            }
+        }
+
+        /**
+         * Plays the previous song in the playlist.
+         */
+        function prevSong() {
+            if (playlist.length === 0) return;
+
+            if (repeatMode === 2) { // Repeat one
+                loadSong(true); // Re-load and play current song
+            } else {
+                currentSongIndex--;
+                if (currentSongIndex < 0) {
+                    currentSongIndex = playlist.length - 1; // Loop to end
+                }
+                loadSong(true);
+            }
+        }
+
+        /**
+         * Handles direct seeking on the progress bar.
+         */
+        function seek() {
+            audioPlayer.currentTime = progressBar.value;
+        }
+
+        /**
+         * Toggles shuffle mode.
+         */
+        function toggleShuffle() {
+            isShuffling = !isShuffling;
+            shuffleBtn.classList.toggle('apply-accent-text', isShuffling);
+            shuffleBtn.classList.toggle('font-bold', isShuffling);
+
+            if (isShuffling) {
+                // Ensure there's a current song to keep at index 0 if shuffling
+                if (playlist.length > 0) {
+                    const currentSong = playlist[currentSongIndex];
+                    const remainingSongs = playlist.filter((_, index) => index !== currentSongIndex);
+
+                    // Fisher-Yates (Knuth) shuffle algorithm for remaining songs
+                    for (let i = remainingSongs.length - 1; i > 0; i--) {
+                        const j = Math.floor(Math.random() * (i + 1));
+                        [remainingSongs[i], remainingSongs[j]] = [remainingSongs[j], remainingSongs[i]];
+                    }
+
+                    // Reconstruct playlist with current song at the beginning
+                    playlist = [currentSong, ...remainingSongs];
+                    currentSongIndex = 0; // Current song is now at index 0
+                }
+            } else {
+                // Restore original playlist order
+                const currentSongId = playlist[currentSongIndex]?.id; // Use optional chaining
+                playlist = [...originalPlaylistOrder]; // Use spread to create new array
+                if (currentSongId !== undefined) {
+                    currentSongIndex = playlist.findIndex(song => song.id === currentSongId); // Find index of current song in original order
+                    if (currentSongIndex === -1) currentSongIndex = 0; // Fallback if current song somehow not found
+                } else {
+                    currentSongIndex = 0; // Reset if no song was playing
+                }
+            }
+            renderPlaylist(); // Re-render playlist to reflect order
+        }
+
+        /**
+         * Toggles repeat mode: 0 (no repeat) -> 1 (repeat all) -> 2 (repeat one) -> 0.
+         */
+        function toggleRepeat() {
+            repeatMode = (repeatMode + 1) % 3; // Cycle through 0, 1, 2
+            // Remove all active classes first for clean toggling
+            repeatIcon.classList.remove('fa-redo', 'fa-redo-alt', 'fa-repeat-1');
+            repeatBtn.classList.remove('apply-accent-text', 'font-bold');
+
+            switch (repeatMode) {
+                case 0: // No repeat
+                    repeatIcon.classList.add('fa-redo-alt'); // Default icon
+                    break;
+                case 1: // Repeat all
+                    repeatIcon.classList.add('fa-redo', 'apply-accent-text', 'font-bold');
+                    break;
+                case 2: // Repeat one
+                    // Use fa-repeat-1 if available, otherwise fa-redo-alt with a visual indication in Font Awesome 6.x
+                    // For simplicity and broader compatibility, we'll just use fa-redo-alt and color for 'repeat one' state
+                    repeatIcon.classList.add('fa-redo-alt', 'apply-accent-text', 'font-bold');
+                    // If you have Font Awesome Pro or newer versions that include fa-repeat-1-alt or fa-repeat-1, you could use that.
+                    break;
+            }
+        }
+
+        /**
+         * Sets the volume of the audio player.
+         */
+        function setVolume() {
+            audioPlayer.volume = volumeBar.value / 100;
+        }
+
+        /**
+         * Renders the playlist dynamically.
+         * Attaches right-click listeners to each song item.
+         */
+        function renderPlaylist() {
+            playlistItemsEl.innerHTML = ''; // Clear existing list
+
+            if (playlist.length === 0) {
+                playlistItemsEl.innerHTML = '<li class="p-3 text-secondary text-center italic">No songs in library. Add some!</li>';
+                return;
+            }
+
+            playlist.forEach((song, index) => {
+                const li = document.createElement('li');
+                li.className = `p-3 rounded-lg cursor-pointer flex justify-between items-center transition-colors duration-200 ${
+                    // Highlight currently playing song visually
+                    (index === currentSongIndex && isPlaying) ? 'apply-accent-bg-light apply-accent-text font-semibold shadow-md' : 'bg-secondary hover:bg-gray-200 text-secondary'
+                }`;
+                li.setAttribute('data-song-id', song.id); // Store song ID on the element
+
+                const songInfoContainer = document.createElement('div');
+                songInfoContainer.className = "flex flex-col flex-1 min-w-0 pr-2"; // Allows flexible growth and prevents overflow on li
+
+                // --- Title line ---
+                const titleLineFlex = document.createElement('div'); // This div holds the animation and the text
+                titleLineFlex.className = "flex items-center text-sm font-medium";
+
+                if (index === currentSongIndex && isPlaying) {
+                    const animationDiv = document.createElement('div');
+                    animationDiv.className = "now-playing-animation flex-shrink-0"; // Ensure animation doesn't shrink
+                    animationDiv.innerHTML = `<span class="bar"></span><span class="bar"></span><span class="bar"></span>`;
+                    titleLineFlex.appendChild(animationDiv);
+                }
+
+                const titleSpan = document.createElement('span');
+                titleSpan.className = "truncate"; // Use Tailwind's truncate class
+                titleSpan.textContent = song.title;
+                titleLineFlex.appendChild(titleSpan);
+
+
+                // --- Artist line ---
+                const artistSpan = document.createElement('span');
+                artistSpan.className = "text-xs text-secondary mt-1 truncate"; // Use Tailwind's truncate class
+                artistSpan.textContent = song.artist;
+
+
+                songInfoContainer.appendChild(titleLineFlex); // Append the flex container for title (animation + truncated title)
+                songInfoContainer.appendChild(artistSpan); // Append the truncated artist span
+
+                li.appendChild(songInfoContainer);
+
+                // Add duration
+                const durationDiv = document.createElement('div');
+                durationDiv.className = "text-xs text-secondary flex-shrink-0";
+                durationDiv.textContent = formatTime(song.duration);
+                li.appendChild(durationDiv);
+
+                li.addEventListener('click', () => {
+                    if (currentSongIndex !== index) {
+                        currentSongIndex = index;
+                        loadSong(true); // Play selected song
+                    } else if (isPlaying) {
+                        pauseSong();
+                    } else {
+                        playSong();
+                    }
+                });
+                // Add right-click listener for context menu
+                li.addEventListener('contextmenu', (e) => showContextMenu(e, song.id));
+                playlistItemsEl.appendChild(li);
+            });
+        }
+
+        /**
+         * Updates the UI to highlight the currently playing song in the playlist.
+         * This function is now also responsible for showing/hiding the animation.
+         */
+        function updatePlaylistUI() {
+            // Re-render the entire playlist to ensure correct animation visibility
+            renderPlaylist();
+        }
+
+        /**
+         * Handles the selection of local audio files.
+         * Extracts metadata using jsmediatags.
+         * @param {Event} event - The change event from the file input.
+         */
+        async function handleFiles(event) {
+            const files = event.target.files;
+            if (files.length === 0) return;
+
+            llmResponseArea.textContent = "Adding songs to your library...";
+            loadingIndicator.classList.remove('hidden');
+
+            const newSongs = [];
+            for (const file of files) {
+                if (file.type.startsWith('audio/')) {
+                    const audioUrl = URL.createObjectURL(file);
+                    let title = file.name.replace(/\.(mp3|wav|ogg|aac|flac)$/i, ''); // Added more common audio extensions
+                    let artist = "Unknown Artist";
+                    let albumArt = "https://placehold.co/192x192/cccccc/333333?text=No+Art";
+                    let duration = 0;
+
+                    // Read ID3 tags using jsmediatags
+                    await new Promise(resolve => {
+                        jsmediatags.read(file, {
+                            onSuccess: function(tag) {
+                                if (tag.tags.title) title = tag.tags.title;
+                                if (tag.tags.artist) artist = tag.tags.artist;
+                                if (tag.tags.picture) {
+                                    const picture = tag.tags.picture;
+                                    let base64String = "";
+                                    for (let i = 0; i < picture.data.length; i++) {
+                                        base64String += String.fromCharCode(picture.data[i]);
+                                    }
+                                    albumArt = `data:${picture.format};base64,${btoa(base64String)}`;
+                                }
+                                resolve();
+                            },
+                            onError: function(error) {
+                                console.warn(`Error reading ID3 tags for ${file.name}:`, error.type, error.info);
+                                resolve(); // Resolve anyway to proceed with file
+                            }
+                        });
+                    });
+
+                    // Get audio duration using a temporary Audio object
+                    try {
+                        const tempAudio = new Audio(audioUrl);
+                        await new Promise(resolve => {
+                            tempAudio.onloadedmetadata = () => {
+                                duration = tempAudio.duration;
+                                resolve();
+                            };
+                            tempAudio.onerror = () => {
+                                console.error("Error loading metadata for file duration:", file.name);
+                                resolve();
+                            };
+                            // In case metadata doesn't load quickly, add a timeout
+                            setTimeout(resolve, 3000); // Max 3 seconds to get duration
+                        });
+                    } catch (e) {
+                        console.error("Error creating temp audio for duration:", e);
+                    }
+
+                    newSongs.push({
+                        id: nextSongId++,
+                        title: title,
+                        artist: artist,
+                        duration: duration || 180, // Default to 3 minutes if duration can't be read
+                        src: audioUrl,
+                        albumArt: albumArt
+                    });
+                }
+            }
+
+            // Add new songs to the playlist and original order
+            playlist.push(...newSongs);
+            originalPlaylistOrder.push(...newSongs); // Keep original order synced
+
+            renderPlaylist();
+            loadingIndicator.classList.add('hidden');
+            llmResponseArea.textContent = `${newSongs.length} song(s) added to your library!`;
+            llmResponseArea.classList.add('text-center'); // Re-center this message
+
+            // If playlist was empty before adding, load the first new song
+            if (playlist.length === newSongs.length && currentSongIndex === 0 && playlist.length > 0) {
+                loadSong();
+            }
+        }
+
+        /**
+         * Calls the Gemini API to get information based on the prompt.
+         * @param {string} promptText - The text prompt for the LLM.
+         * @param {Object} [songContext=null] - Optional song object to provide context for LLM queries.
+         */
+        async function getGeminiResponse(promptText, songContext = null) {
+            let actualPrompt = promptText;
+            if (songContext) {
+                actualPrompt = actualPrompt.replace('${song.title}', songContext.title || 'a song')
+                                           .replace('${song.artist}', songContext.artist || 'an artist');
+            }
+
+            if (playlist.length === 0 && !songContext && (promptText.includes("${song.title}") || promptText.includes("${song.artist}"))) {
+                llmResponseArea.textContent = "Please add and play a song to get AI insights specific to music!";
+                llmResponseArea.classList.add('text-center'); // Re-center for generic messages
+                return;
+            } else if (playlist.length === 0 && !songContext) {
+                llmResponseArea.textContent = "Please add songs to your library first!";
+                llmResponseArea.classList.add('text-center'); // Re-center for generic messages
+                return;
+            }
+
+
+            loadingIndicator.classList.remove('hidden'); // Show loading indicator
+            llmResponseArea.textContent = ''; // Clear previous response
+            llmResponseArea.classList.remove('text-center'); // Ensure left alignment for responses
+
+            try {
+                let chatHistory = [];
+                chatHistory.push({ role: "user", parts: [{ text: actualPrompt }] });
+                const payload = { contents: chatHistory };
+                const apiKey = ""; // Canvas will automatically provide the API key
+                const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`;
+
+                const response = await fetch(apiUrl, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+
+                const result = await response.json();
+                if (result.candidates && result.candidates.length > 0 &&
+                    result.candidates[0].content && result.candidates[0].content.parts &&
+                    result.candidates[0].content.parts.length > 0) {
+                    const text = result.candidates[0].content.parts[0].text;
+                    llmResponseArea.textContent = text;
+                } else {
+                    llmResponseArea.textContent = "Could not get a response from the AI. Please try again.";
+                    llmResponseArea.classList.add('text-center'); // Re-center if AI fails to provide content
+                    console.error("Unexpected Gemini API response structure:", result);
+                }
+            } catch (error) {
+                console.error("Error calling Gemini API:", error);
+                llmResponseArea.textContent = "An error occurred while fetching AI response. Please try again later.";
+                llmResponseArea.classList.add('text-center'); // Re-center if error occurs
+            } finally {
+                loadingIndicator.classList.add('hidden'); // Hide loading indicator
+            }
+        }
+
+        /**
+         * Handles tab switching.
+         * @param {string} tabId - The ID of the tab content to show.
+         * @param {HTMLElement} clickedButton - The button that was clicked.
+         */
+        function switchTab(tabId, clickedButton) {
+            // Hide all tab contents
+            tabContents.forEach(content => content.classList.add('hidden'));
+            // Remove active class from all buttons
+            tabButtons.forEach(button => button.classList.remove('active-tab', 'apply-accent-color', 'text-white'));
+
+            // Show the selected tab content
+            document.getElementById(tabId).classList.remove('hidden');
+            // Add active class to the clicked button
+            clickedButton.classList.add('active-tab', 'apply-accent-color', 'text-white');
+        }
+
+        /**
+         * Applies the accent color theme based on the dynamic toggle.
+         * This is the master function for applying accent colors.
+         */
+        async function updateAccentColors() {
+            if (dynamicAccentToggle.checked) {
+                // Pass the albumArtEl.src directly to the asynchronous getDominantColor function
+                const dominantColor = await getDominantColor(albumArtEl.src);
+                applyDynamicAccent(dominantColor);
+            } else {
+                const savedAccentColor = localStorage.getItem('mp3PlayerAccentColor') || 'purple';
+                applyStaticAccent(savedAccentColor);
+            }
+            // Re-render playlist to ensure colors are applied to individual items (e.g., active song highlight)
+            renderPlaylist();
+        }
+
+
+        /**
+         * Initializes the theme based on local storage or default.
+         */
+        function initializeTheme() {
+            // Dark Mode
+            const savedDarkMode = localStorage.getItem('mp3PlayerDarkMode');
+            if (savedDarkMode === 'true') {
+                body.classList.add('dark-mode');
+                darkModeToggle.checked = true;
+            } else {
+                body.classList.remove('dark-mode');
+                darkModeToggle.checked = false;
+            }
+
+            // Dynamic Accent Toggle
+            const savedDynamicAccent = localStorage.getItem('mp3PlayerDynamicAccent');
+            if (savedDynamicAccent === 'true') {
+                dynamicAccentToggle.checked = true;
+            } else {
+                dynamicAccentToggle.checked = false; // Default to off
+            }
+
+            // Apply colors based on initial dynamic accent state (which will then call applyStaticAccent or applyDynamicAccent)
+            updateAccentColors(); // This is called initially, and then by loadSong after album art changes
+
+            // Set initial active tab button color
+            tabNowPlayingBtn.classList.add('apply-accent-color', 'text-white');
+        }
+
+        /**
+         * Displays the custom context menu at the given coordinates.
+         * @param {MouseEvent} e - The mouse event.
+         * @param {number} songId - The ID of the song that was right-clicked.
+         */
+        function showContextMenu(e, songId) {
+            e.preventDefault(); // Prevent default browser context menu
+
+            rightClickedSongId = songId; // Store the ID of the song clicked
+
+            // Position the menu
+            customContextMenu.style.left = `${e.clientX}px`;
+            customContextMenu.style.top = `${e.clientY}px`;
+            customContextMenu.classList.remove('hidden');
+
+            // Adjust position if it goes off screen
+            const menuWidth = customContextMenu.offsetWidth;
+            const menuHeight = customContextMenu.offsetHeight;
+            const viewportWidth = window.innerWidth;
+            const viewportHeight = window.innerHeight;
+
+            if (e.clientX + menuWidth > viewportWidth) {
+                customContextMenu.style.left = `${viewportWidth - menuWidth - 10}px`; // 10px padding
+            }
+            if (e.clientY + menuHeight > viewportHeight) {
+                customContextMenu.style.top = `${viewportHeight - menuHeight - 10}px`; // 10px padding
+            }
+        }
+
+        /**
+         * Hides the custom context menu.
+         */
+        function hideContextMenu() {
+            customContextMenu.classList.add('hidden');
+            rightClickedSongId = null; // Clear the stored song ID
+        }
+
+        /**
+         * Handles actions triggered by the custom context menu.
+         * @param {Event} e - The click event.
+         */
+        function handleContextMenuAction(e) {
+            hideContextMenu(); // Hide menu immediately
+
+            const action = e.target.closest('li')?.dataset.action;
+            if (!action || rightClickedSongId === null) return;
+
+            const clickedSongIndex = playlist.findIndex(song => song.id === rightClickedSongId);
+            if (clickedSongIndex === -1) return; // Song not found
+
+            const clickedSong = playlist[clickedSongIndex];
+
+            switch (action) {
+                case 'playNext':
+                    if (playlist.length === 0) {
+                        llmResponseArea.textContent = "Playlist is empty. Add songs first.";
+                        return;
+                    }
+                    if (clickedSongIndex === currentSongIndex) {
+                        llmResponseArea.textContent = "This song is already playing.";
+                        return;
+                    }
+
+                    // Remove song from its current position
+                    playlist.splice(clickedSongIndex, 1);
+                    originalPlaylistOrder.splice(originalPlaylistOrder.findIndex(s => s.id === clickedSong.id), 1);
+
+                    // Determine insert index
+                    let insertIndex;
+                    if (isPlaying && currentSongIndex < playlist.length) {
+                        insertIndex = currentSongIndex + 1;
+                    } else if (isPlaying && currentSongIndex === playlist.length) { // If currently playing last song
+                        insertIndex = playlist.length;
+                    }
+                     else { // Not playing or playlist was empty/reset
+                        insertIndex = 0;
+                    }
+                    
+                    // Re-insert the song
+                    playlist.splice(insertIndex, 0, clickedSong);
+                    originalPlaylistOrder.splice(insertIndex, 0, clickedSong);
+
+                    // Adjust currentSongIndex based on the move
+                    if (clickedSongIndex < currentSongIndex) {
+                        // If the moved song was before the currently playing song, currentSongIndex shifts down
+                        currentSongIndex--;
+                    } else if (insertIndex <= currentSongIndex) {
+                        // If inserted before or at currentSongIndex, and the original was after, currentSongIndex shifts up
+                        currentSongIndex++;
+                    }
+                     // If currentSongIndex itself was the target of playNext, it now points to the original song, and the new one is next.
+                     // The currentSongIndex should remain unchanged here if it's the target.
+
+                    llmResponseArea.textContent = `"${clickedSong.title}" will play next!`;
+                    renderPlaylist(); // Re-render to show new order
+                    break;
+                case 'addToQueue':
+                    if (playlist.length === 0) {
+                        llmResponseArea.textContent = "Playlist is empty. Add songs first.";
+                        return;
+                    }
+                    if (clickedSongIndex === playlist.length - 1) {
+                         llmResponseArea.textContent = "This song is already at the end of the queue.";
+                         return;
+                    }
+                    // Remove song from its current position
+                    playlist.splice(clickedSongIndex, 1);
+                    originalPlaylistOrder.splice(originalPlaylistOrder.findIndex(s => s.id === clickedSong.id), 1);
+
+                    // Add to end
+                    playlist.push(clickedSong);
+                    originalPlaylistOrder.push(clickedSong);
+
+                    // Adjust currentSongIndex if the removed song was before it
+                    if (clickedSongIndex < currentSongIndex) {
+                        currentSongIndex--;
+                    } else if (clickedSongIndex === currentSongIndex) {
+                        // If the currently playing song was moved to the end, its index changed
+                        currentSongIndex = playlist.length - 1;
+                    }
+                    llmResponseArea.textContent = `"${clickedSong.title}" added to queue!`;
+                    renderPlaylist(); // Re-render to show new order
+                    break;
+                case 'delete':
+                    if (confirm(`Are you sure you want to delete "${clickedSong.title}" from your library?`)) {
+                        const wasPlaying = (currentSongIndex === clickedSongIndex);
+                        const wasLastSongInPlaylist = (playlist.length === 1);
+
+                        // Remove from playlist
+                        playlist.splice(clickedSongIndex, 1);
+                        // Remove from original order
+                        originalPlaylistOrder = originalPlaylistOrder.filter(s => s.id !== clickedSong.id);
+
+                        if (wasPlaying) {
+                            if (wasLastSongInPlaylist) {
+                                currentSongIndex = 0; // Reset index for empty playlist state
+                                loadSong(); // Load empty state
+                                pauseSong(); // Ensure player is stopped
+                            } else {
+                                // If deleted song was currently playing, move to next or start from beginning
+                                if (currentSongIndex >= playlist.length) { // If it was the last song (now deleted)
+                                    currentSongIndex = 0; // Loop back to the first song
+                                }
+                                loadSong(true); // Load and play the new current song
+                            }
+                        } else if (clickedSongIndex < currentSongIndex) {
+                            // If a song before the current one was deleted, adjust currentSongIndex
+                            currentSongIndex--;
+                        }
+                        renderPlaylist(); // Re-render to reflect deletion
+                        llmResponseArea.textContent = `"${clickedSong.title}" deleted from library.`;
+                    }
+                    break;
+                case 'getSongInfo':
+                    const songInfoPrompt = `Provide a short, interesting fact or brief analysis (2-3 sentences) about the song "${clickedSong.title}" by "${clickedSong.artist}". If you don't know, provide a generic but positive statement about music.`;
+                    getGeminiResponse(songInfoPrompt, clickedSong);
+                    switchTab('now-playing-tab-content', tabNowPlayingBtn); // Switch to Now Playing to show response
+                    break;
+                case 'getArtistBio':
+                    const artistBioPrompt = `Provide a very short bio (2-3 sentences) or a fun fact about the artist "${clickedSong.artist}". If you don't know, provide a generic but positive statement about musical artists.`;
+                    getGeminiResponse(artistBioPrompt, clickedSong);
+                    switchTab('now-playing-tab-content', tabNowPlayingBtn); // Switch to Now Playing to show response
+                    break;
+            }
+        }
+
+        // Event Listeners for Audio Element
+        audioPlayer.addEventListener('timeupdate', () => {
+            if (!isNaN(audioPlayer.duration) && isFinite(audioPlayer.duration)) {
+                progressBar.value = audioPlayer.currentTime;
+                currentTimeEl.textContent = formatTime(audioPlayer.currentTime);
+            }
+        });
+
+        audioPlayer.addEventListener('ended', () => {
+            nextSong(); // Play next song when current one ends
+        });
+
+        audioPlayer.addEventListener('error', (e) => {
+            console.error("Audio element error:", e);
+            llmResponseArea.textContent = "Error playing audio. The file might be corrupted or inaccessible.";
+            pauseSong();
+        });
+
+
+        // Event Listeners for Player Controls
+        playPauseBtn.addEventListener('click', togglePlayPause);
+        prevBtn.addEventListener('click', prevSong);
+        nextBtn.addEventListener('click', nextSong);
+        progressBar.addEventListener('input', seek);
+        shuffleBtn.addEventListener('click', toggleShuffle);
+        repeatBtn.addEventListener('click', toggleRepeat);
+        volumeBar.addEventListener('input', setVolume);
+
+        // Event Listeners for Gemini AI Buttons
+        getSongInfoBtn.addEventListener('click', () => {
+            const currentSong = playlist[currentSongIndex];
+            if (!currentSong) {
+                llmResponseArea.textContent = "No song is loaded to get information about.";
+                llmResponseArea.classList.add('text-center'); // Re-center for generic messages
+                return;
+            }
+            const prompt = `Provide a short, interesting fact or brief analysis (2-3 sentences) about the song "${currentSong.title}" by "${currentSong.artist}". If you don't know, provide a generic but positive statement about music.`;
+            getGeminiResponse(prompt, currentSong);
+            aiFeaturesDropdownMenu.classList.add('hidden'); // Hide dropdown after selection
+        });
+
+        getArtistBioBtn.addEventListener('click', () => {
+            const currentSong = playlist[currentSongIndex];
+            if (!currentSong) {
+                llmResponseArea.textContent = "No song is loaded to get artist information about.";
+                llmResponseArea.classList.add('text-center'); // Re-center for generic messages
+                return;
+            }
+            const prompt = `Provide a very short bio (2-3 sentences) or a fun fact about the artist "${currentSong.artist}". If you don't know, provide a generic but positive statement about musical artists.`;
+            getGeminiResponse(prompt, currentSong);
+            aiFeaturesDropdownMenu.classList.add('hidden'); // Hide dropdown after selection
+        });
+
+        generateSongStoryBtn.addEventListener('click', () => {
+            const currentSong = playlist[currentSongIndex];
+            if (!currentSong) {
+                llmResponseArea.textContent = "Please play a song to generate a story!";
+                llmResponseArea.classList.add('text-center'); // Re-center for generic messages
+                return;
+            }
+            const prompt = `Write a very short, imaginative story (3-5 sentences) inspired by the song title "${currentSong.title}" and artist "${currentSong.artist}". Focus on mood and imagery related to the title.`;
+            getGeminiResponse(prompt, currentSong);
+            aiFeaturesDropdownMenu.classList.add('hidden'); // Hide dropdown after selection
+        });
+
+        suggestSimilarBtn.addEventListener('click', () => {
+            const currentSong = playlist[currentSongIndex];
+            if (!currentSong) {
+                llmResponseArea.textContent = "Please play a song to get similar music suggestions!";
+                llmResponseArea.classList.add('text-center'); // Re-center for generic messages
+                return;
+            }
+            const prompt = `Suggest 3-5 song titles or artists that are musically similar in style or mood to "${currentSong.title}" by "${currentSong.artist}". If you can't provide specific examples, suggest common genres or moods that listeners of this type of music might enjoy.`;
+            getGeminiResponse(prompt, currentSong);
+            aiFeaturesDropdownMenu.classList.add('hidden'); // Hide dropdown after selection
+        });
+
+        // New AI Feature Listeners
+        explainLyricsBtn.addEventListener('click', () => {
+            const currentSong = playlist[currentSongIndex];
+            if (!currentSong) {
+                llmResponseArea.textContent = "No song is loaded to explain lyrics for.";
+                llmResponseArea.classList.add('text-center');
+                return;
+            }
+            // For actual lyric explanation, you'd need the lyrics.
+            // Since we don't extract lyrics, we'll ask for a creative interpretation.
+            const prompt = `Provide a brief, creative interpretation of possible themes or meanings behind a song titled "${currentSong.title}" by "${currentSong.artist}". If the song title is generic, interpret it generally. If you have no information, say so.`;
+            getGeminiResponse(prompt, currentSong);
+            aiFeaturesDropdownMenu.classList.add('hidden');
+        });
+
+        songTriviaBtn.addEventListener('click', () => {
+            const currentSong = playlist[currentSongIndex];
+            if (!currentSong) {
+                llmResponseArea.textContent = "No song is loaded to generate trivia for.";
+                llmResponseArea.classList.add('text-center');
+                return;
+            }
+            const prompt = `Generate one short trivia question (with answer) about the song "${currentSong.title}" by "${currentSong.artist}", or if no specific information is available, a general music trivia question. Format: "Question: ... Answer: ..."`;
+            getGeminiResponse(prompt, currentSong);
+            aiFeaturesDropdownMenu.classList.add('hidden');
+        });
+
+
+        // Event Listeners for Tabs
+        tabNowPlayingBtn.addEventListener('click', () => switchTab('now-playing-tab-content', tabNowPlayingBtn));
+        tabLibraryBtn.addEventListener('click', () => switchTab('library-tab-content', tabLibraryBtn));
+        tabSettingsBtn.addEventListener('click', () => switchTab('settings-tab-content', tabSettingsBtn));
+
+        // Event Listeners for Library Tab
+        addFilesBtn.addEventListener('click', () => addFilesInput.click()); // Trigger hidden input click
+        addFilesInput.addEventListener('change', handleFiles);
+
+        // Event Listeners for Settings Tab
+        darkModeToggle.addEventListener('change', () => {
+            body.classList.toggle('dark-mode');
+            localStorage.setItem('mp3PlayerDarkMode', body.classList.contains('dark-mode'));
+            updateAccentColors(); // Call updateAccentColors to re-evaluate based on new dark mode state
+        });
+
+        dynamicAccentToggle.addEventListener('change', () => {
+            localStorage.setItem('mp3PlayerDynamicAccent', dynamicAccentToggle.checked);
+            updateAccentColors(); // Re-evaluate and apply accent colors based on the toggle state
+        });
+
+        accentColorButtons.forEach(button => {
+            button.addEventListener('click', () => {
+                const color = button.dataset.accent-color;
+                localStorage.setItem('mp3PlayerAccentColor', color); // Save selected static color
+                updateAccentColors(); // Apply colors (will use static if dynamic is off)
+            });
+        });
+
+        // Playback Speed Control Logic
+        playbackSpeedBar.addEventListener('input', () => {
+            // Convert slider value (5-20) to playback rate (0.5-2.0)
+            const speed = (parseInt(playbackSpeedBar.value) / 10).toFixed(1);
+            audioPlayer.playbackRate = speed;
+            playbackSpeedValue.textContent = `${speed}x`;
+            localStorage.setItem('mp3PlayerPlaybackSpeed', speed); // Persist speed
+        });
+
+        // Event Listener for AI Features Dropdown Toggle
+        aiFeaturesToggleBtn.addEventListener('click', (e) => {
+            e.stopPropagation(); // Prevent this click from immediately closing the dropdown via document listener
+            aiFeaturesDropdownMenu.classList.toggle('hidden');
+        });
+
+        // Global click listener to hide context menu AND AI dropdown
+        document.addEventListener('click', (e) => {
+            // Hide custom context menu
+            if (!customContextMenu.contains(e.target) && !e.target.closest('[data-song-id]')) {
+                hideContextMenu();
+            }
+            // Hide AI features dropdown
+            if (!aiFeaturesDropdownMenu.contains(e.target) && e.target !== aiFeaturesToggleBtn) {
+                aiFeaturesDropdownMenu.classList.add('hidden');
+            }
+        });
+
+        // Global right-click listener to hide context menu if clicking outside playlist items
+        document.addEventListener('contextmenu', (e) => {
+            if (!e.target.closest('[data-song-id]')) {
+                hideContextMenu();
+            }
+        });
+
+        // Event Listener for context menu actions
+        customContextMenu.addEventListener('click', handleContextMenuAction);
+
+
+        // Initialize the player and theme when the window loads
+        window.onload = function() {
+            initializeTheme();
+            // Set initial volume
+            audioPlayer.volume = volumeBar.value / 100;
+            // Load and set initial playback speed
+            const savedPlaybackSpeed = localStorage.getItem('mp3PlayerPlaybackSpeed') || '1.0';
+            playbackSpeedBar.value = parseFloat(savedPlaybackSpeed) * 10; // Convert back for slider
+            audioPlayer.playbackRate = parseFloat(savedPlaybackSpeed);
+            playbackSpeedValue.textContent = `${savedPlaybackSpeed}x`;
+
+            loadSong(); // Load the first song from the (now potentially empty) initial playlist
+        };
+    </script>
+</body>
+</html>
