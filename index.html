@@ -1384,11 +1384,13 @@
 
             llmResponseArea.textContent = "Adding songs to your library...";
             loadingIndicator.classList.remove('hidden');
+            console.log("Starting file upload process.");
 
             const libraryCollectionRef = collection(db, `artifacts/${__app_id}/users/${userId}/library`);
 
             let songsAddedCount = 0;
             for (const file of files) {
+                console.log(`Processing file: ${file.name}`);
                 if (file.type.startsWith('audio/')) {
                     const audioUrl = URL.createObjectURL(file);
                     let title = file.name.replace(/\.(mp3|wav|ogg|aac|flac)$/i, '');
@@ -1397,6 +1399,7 @@
                     let duration = 0;
                     let isLiked = false;
 
+                    console.log(`Reading ID3 tags for ${file.name}...`);
                     await new Promise(resolve => {
                         jsmediatags.read(file, {
                             onSuccess: function(tag) {
@@ -1410,59 +1413,91 @@
                                     }
                                     albumArt = `data:${picture.format};base64,${btoa(base64String)}`;
                                 }
+                                console.log(`ID3 tags read for ${file.name}.`);
                                 resolve();
                             },
                             onError: function(error) {
                                 console.warn(`Error reading ID3 tags for ${file.name}:`, error.type, error.info);
-                                resolve();
+                                resolve(); // Always resolve, even on error, to continue processing
                             }
                         });
                     });
 
+                    console.log(`Getting duration for ${file.name}...`);
                     try {
-                        const tempAudio = new Audio(audioUrl);
+                        const tempAudio = new Audio();
+                        tempAudio.src = audioUrl; // Set source here
                         await new Promise(resolve => {
+                            let resolved = false; // Flag to prevent multiple resolutions
+                            const timer = setTimeout(() => {
+                                if (!resolved) {
+                                    console.warn(`Timeout for metadata loading for ${file.name}`);
+                                    URL.revokeObjectURL(audioUrl); // Revoke on timeout too
+                                    resolved = true;
+                                    resolve();
+                                }
+                            }, 10000); // Increased timeout to 10 seconds
+
                             tempAudio.onloadedmetadata = () => {
-                                duration = tempAudio.duration;
-                                resolve();
+                                if (!resolved) {
+                                    duration = tempAudio.duration;
+                                    console.log(`Metadata loaded for ${file.name}. Duration: ${duration}`);
+                                    clearTimeout(timer);
+                                    URL.revokeObjectURL(audioUrl); // Revoke object URL after use
+                                    resolved = true;
+                                    resolve();
+                                }
                             };
-                            tempAudio.onerror = () => {
-                                console.error("Error loading metadata for file duration:", file.name);
-                                resolve();
+                            tempAudio.onerror = (e) => {
+                                if (!resolved) {
+                                    console.error("Error loading metadata for file duration:", file.name, e);
+                                    clearTimeout(timer);
+                                    URL.revokeObjectURL(audioUrl); // Revoke object URL even on error
+                                    resolved = true;
+                                    resolve();
+                                }
                             };
-                            setTimeout(resolve, 3000);
+                            tempAudio.load(); // Explicitly tell the audio element to load
                         });
                     } catch (e) {
                         console.error("Error creating temp audio for duration:", e);
+                        // This catch block means the `new Audio()` or `tempAudio.src` assignment itself failed.
+                        // The outer promise for the file processing should still continue.
                     }
 
+                    console.log(`Adding ${file.name} to Firestore...`);
                     // Add song to Firestore
                     try {
                         // Firestore automatically generates an ID, so we don't need nextSongId++
                         const docRef = await addDoc(libraryCollectionRef, {
                             title: title,
                             artist: artist,
-                            duration: duration || 180,
+                            duration: duration || 180, // Fallback duration
                             src: audioUrl, // Object URL, only valid for current session
                             albumArt: albumArt,
                             isLiked: isLiked,
-                            timestamp: Date.now() // Add a timestamp for potential ordering
+                            timestamp: Date.now()
                         });
                         console.log("Document written with ID: ", docRef.id);
                         songsAddedCount++;
                     } catch (e) {
-                        console.error("Error adding document: ", e);
+                        console.error("Error adding document to Firestore: ", e);
                         llmResponseArea.textContent = `Failed to add "${title}" to library. Error: ${e.message}`;
                         llmResponseArea.classList.add('text-center');
                         loadingIndicator.classList.add('hidden');
-                        return; // Stop processing if a song fails to add
+                        // Crucially, if a Firestore add fails, we should still try to revoke the URL
+                        URL.revokeObjectURL(audioUrl);
+                        return; // Stop processing if a song fails to add to Firestore
                     }
+                } else {
+                    console.warn(`Skipping non-audio file: ${file.name}`);
                 }
             }
 
             llmResponseArea.textContent = `${songsAddedCount} song(s) added to your library!`;
             llmResponseArea.classList.add('text-center');
             loadingIndicator.classList.add('hidden');
+            console.log("File upload process completed.");
             // Data will be re-rendered by the onSnapshot listener
         }
 
