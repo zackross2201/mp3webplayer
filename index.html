@@ -275,11 +275,11 @@
             </div>
 
             <!-- Progress Bar -->
-            <div class="mb-4">
+            <div class="mb-4 relative">
                 <input type="range" id="progress-bar" value="0" min="0" max="100" class="w-full h-2 rounded-lg appearance-none cursor-pointer apply-progress-track dynamic-thumb">
-                <div class="flex justify-between text-sm text-secondary mt-1">
-                    <span id="current-time">0:00</span>
-                    <span id="duration">0:00</span>
+                <div class="text-sm text-secondary mt-1 relative w-full h-5">
+                    <span id="current-time" class="absolute top-0 -translate-x-1/2">0:00</span>
+                    <span id="duration" class="absolute top-0 right-0">0:00</span>
                 </div>
             </div>
 
@@ -346,6 +346,11 @@
                                 ✨ Song Trivia
                             </button>
                         </li>
+                        <li>
+                            <button id="create-playlist-btn" class="block w-full text-left px-4 py-2 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-600">
+                                ✨ Create Playlist
+                            </button>
+                        </li>
                     </ul>
                 </div>
             </div>
@@ -364,7 +369,7 @@
             <h3 class="text-xl font-semibold text-center mb-4 apply-accent-text">Your Library</h3>
             <div class="mb-4 text-center">
                 <input type="file" id="add-files-input" accept="audio/*" multiple class="hidden">
-                <button id="add-files-btn" class="bg-blue-500 hover:bg-blue-600 text-white font-bold py-2 px-4 rounded-lg shadow-md transition duration-200 ease-in-out">
+                <button id="add-files-btn" class="apply-accent-color hover:apply-accent-hover text-white font-bold py-2 px-4 rounded-lg shadow-md transition duration-200 ease-in-out">
                     <i class="fas fa-plus mr-2"></i>Add Local Files
                 </button>
                 <p class="text-sm text-secondary mt-2">
@@ -499,6 +504,7 @@
         // New AI feature buttons
         const explainLyricsBtn = document.getElementById('explain-lyrics-btn');
         const songTriviaBtn = document.getElementById('song-trivia-btn');
+        const createPlaylistBtn = document.getElementById('create-playlist-btn');
 
 
         const llmResponseArea = document.getElementById('llm-response-area');
@@ -1145,21 +1151,18 @@
          * Calls the Gemini API to get information based on the prompt.
          * @param {string} promptText - The text prompt for the LLM.
          * @param {Object} [songContext=null] - Optional song object to provide context for LLM queries.
+         * @param {Object} [responseSchema=null] - Optional schema for structured JSON responses.
          */
-        async function getGeminiResponse(promptText, songContext = null) {
+        async function getGeminiResponse(promptText, songContext = null, responseSchema = null) {
             let actualPrompt = promptText;
             if (songContext) {
                 actualPrompt = actualPrompt.replace('${song.title}', songContext.title || 'a song')
                                            .replace('${song.artist}', songContext.artist || 'an artist');
             }
 
-            if (playlist.length === 0 && !songContext && (promptText.includes("${song.title}") || promptText.includes("${song.artist}"))) {
-                llmResponseArea.textContent = "Please add and play a song to get AI insights specific to music!";
-                llmResponseArea.classList.add('text-center'); // Re-center for generic messages
-                return;
-            } else if (playlist.length === 0 && !songContext) {
+            if (playlist.length === 0 && !songContext && !responseSchema) { // Only block if no song and not a general query like playlist creation
                 llmResponseArea.textContent = "Please add songs to your library first!";
-                llmResponseArea.classList.add('text-center'); // Re-center for generic messages
+                llmResponseArea.classList.add('text-center');
                 return;
             }
 
@@ -1171,14 +1174,23 @@
             try {
                 let chatHistory = [];
                 chatHistory.push({ role: "user", parts: [{ text: actualPrompt }] });
+                
                 const payload = { contents: chatHistory };
-                // Your Gemini API Key is inserted here
-                const apiKey = "AIzaSyDP_IkTkLrAnsgLhYEx-PazIR1ieJOS2QY";
+                const headers = { 'Content-Type': 'application/json' };
+
+                if (responseSchema) {
+                    payload.generationConfig = {
+                        responseMimeType: "application/json",
+                        responseSchema: responseSchema
+                    };
+                }
+
+                const apiKey = "AIzaSyDP_IkTkLrAnsgLhYEx-PazIR1ieJOS2QY"; // Your Gemini API Key is inserted here
                 const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`;
 
                 const response = await fetch(apiUrl, {
                     method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
+                    headers: headers,
                     body: JSON.stringify(payload)
                 });
 
@@ -1187,16 +1199,38 @@
                     result.candidates[0].content && result.candidates[0].content.parts &&
                     result.candidates[0].content.parts.length > 0) {
                     const text = result.candidates[0].content.parts[0].text;
-                    llmResponseArea.textContent = text;
+                    
+                    if (responseSchema) {
+                        try {
+                            const parsedJson = JSON.parse(text);
+                            // Format for display for playlist
+                            if (Array.isArray(parsedJson) && parsedJson.every(item => item.title && item.artist)) {
+                                let formattedPlaylist = "Here's a suggested playlist:\n\n";
+                                parsedJson.forEach((item, index) => {
+                                    formattedPlaylist += `${index + 1}. ${item.title} by ${item.artist}\n`;
+                                });
+                                llmResponseArea.textContent = formattedPlaylist;
+                            } else {
+                                llmResponseArea.textContent = "AI generated an unexpected structured response. Please try a different prompt.";
+                                console.warn("Unexpected structured response:", parsedJson);
+                            }
+                        } catch (parseError) {
+                            llmResponseArea.textContent = "AI generated malformed JSON. Please try again.";
+                            console.error("Error parsing AI JSON response:", parseError, text);
+                        }
+                    } else {
+                        llmResponseArea.textContent = text;
+                    }
+
                 } else {
                     llmResponseArea.textContent = "Could not get a response from the AI. Please try again.";
-                    llmResponseArea.classList.add('text-center'); // Re-center if AI fails to provide content
+                    llmResponseArea.classList.add('text-center');
                     console.error("Unexpected Gemini API response structure:", result);
                 }
             } catch (error) {
                 console.error("Error calling Gemini API:", error);
                 llmResponseArea.textContent = "An error occurred while fetching AI response. Please try again later.";
-                llmResponseArea.classList.add('text-center'); // Re-center if error occurs
+                llmResponseArea.classList.add('text-center');
             } finally {
                 loadingIndicator.classList.add('hidden'); // Hide loading indicator
             }
@@ -1436,7 +1470,22 @@
         audioPlayer.addEventListener('timeupdate', () => {
             if (!isNaN(audioPlayer.duration) && isFinite(audioPlayer.duration)) {
                 progressBar.value = audioPlayer.currentTime;
+                
+                const progressPercentage = audioPlayer.currentTime / audioPlayer.duration;
+                
+                // Position current-time relative to the progress bar width
+                // The -translate-x-1/2 class on currentTimeEl will center it on this calculated left position
+                currentTimeEl.style.left = `${progressPercentage * 100}%`;
                 currentTimeEl.textContent = formatTime(audioPlayer.currentTime);
+
+                // Hide duration if current time is near the end
+                // Adjust the threshold (e.g., 0.85 means hide if progress is beyond 85%)
+                const HIDE_DURATION_THRESHOLD = 0.85;
+                if (progressPercentage > HIDE_DURATION_THRESHOLD && audioPlayer.duration > 0) {
+                    durationEl.classList.add('hidden');
+                } else {
+                    durationEl.classList.remove('hidden');
+                }
             }
         });
 
@@ -1534,6 +1583,27 @@
             const prompt = `Generate one short trivia question (with answer) about the song "${currentSong.title}" by "${currentSong.artist}", or if no specific information is available, a general music trivia question. Format: "Question: ... Answer: ..."`;
             getGeminiResponse(prompt, currentSong);
             aiFeaturesDropdownMenu.classList.add('hidden');
+        });
+
+        createPlaylistBtn.addEventListener('click', () => {
+            const moodOrActivity = prompt("Enter a mood or activity for your playlist (e.g., 'workout', 'relaxing', 'study'):");
+            if (moodOrActivity) {
+                const playlistPrompt = `Generate a short playlist of 5 songs for a ${moodOrActivity} mood/activity. Provide only the song titles and artists in a JSON array format. Example: [{"title": "Song A", "artist": "Artist X"}, {"title": "Song B", "artist": "Artist Y"}]`;
+                const playlistSchema = {
+                    type: "ARRAY",
+                    items: {
+                        type: "OBJECT",
+                        properties: {
+                            "title": { "type": "STRING" },
+                            "artist": { "type": "STRING" }
+                        },
+                        required: ["title", "artist"]
+                    },
+                    "propertyOrdering": ["title", "artist"]
+                };
+                getGeminiResponse(playlistPrompt, null, playlistSchema);
+                aiFeaturesDropdownMenu.classList.add('hidden');
+            }
         });
 
 
