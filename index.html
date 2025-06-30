@@ -4,6 +4,15 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Advanced MP3 Player</title>
+    <!-- Google tag (gtag.js) -->
+    <script async src="https://www.googletagmanager.com/gtag/js?id=G-J8GGLVXRVQ"></script>
+    <script>
+      window.dataLayer = window.dataLayer || [];
+      function gtag(){dataLayer.push(arguments);}
+      gtag('js', new Date());
+
+      gtag('config', 'G-J8GGLVXRVQ');
+    </script>
     <!-- Tailwind CSS CDN -->
     <script src="https://cdn.tailwindcss.com"></script>
     <!-- Font Awesome for icons -->
@@ -45,27 +54,31 @@
         /* Styles for scrollbar in playlist for better aesthetics */
         #playlist-items::-webkit-scrollbar,
         #create-playlist-songs::-webkit-scrollbar,
-        #playlist-detail-songs::-webkit-scrollbar {
+        #playlist-detail-songs::-webkit-scrollbar,
+        #playlists-list::-webkit-scrollbar {
             width: 8px;
         }
 
         #playlist-items::-webkit-scrollbar-track,
         #create-playlist-songs::-webkit-scrollbar-track,
-        #playlist-detail-songs::-webkit-scrollbar-track {
+        #playlist-detail-songs::-webkit-scrollbar-track,
+        #playlists-list::-webkit-scrollbar-track {
             background: var(--bg-secondary);
             border-radius: 10px;
         }
 
         #playlist-items::-webkit-scrollbar-thumb,
         #create-playlist-songs::-webkit-scrollbar-thumb,
-        #playlist-detail-songs::-webkit-scrollbar-thumb {
+        #playlist-detail-songs::-webkit-scrollbar-thumb,
+        #playlists-list::-webkit-scrollbar-thumb {
             background: var(--text-muted);
             border-radius: 10px;
         }
 
         #playlist-items::-webkit-scrollbar-thumb:hover,
         #create-playlist-songs::-webkit-scrollbar-thumb:hover,
-        #playlist-detail-songs::-webkit-scrollbar-thumb:hover {
+        #playlist-detail-songs::-webkit-scrollbar-thumb:hover,
+        #playlists-list::-webkit-scrollbar-thumb:hover {
             background: var(--text-light);
         }
 
@@ -290,6 +303,33 @@
             display: flex;
             flex-direction: column;
         }
+
+        /* Now Playing Title Visualizer */
+        .now-playing-title-visualizer {
+            display: inline-flex;
+            align-items: flex-end;
+            height: 24px; /* Larger for title */
+            width: 24px;
+            margin-left: 10px; /* Space after title */
+            vertical-align: middle;
+            overflow: hidden;
+        }
+
+        .now-playing-title-visualizer .bar {
+            width: 6px; /* Wider bars */
+            height: 6px;
+            background-color: var(--accent-main);
+            margin: 0 1px;
+            animation: bounce 0.6s ease-in-out infinite alternate;
+        }
+        .now-playing-title-visualizer .bar:nth-child(2) { animation-delay: 0.1s; }
+        .now-playing-title-visualizer .bar:nth-child(3) { animation-delay: 0.2s; }
+
+        @keyframes bounce {
+            0% { transform: scaleY(0.3); height: 6px; }
+            100% { transform: scaleY(1); height: 24px; }
+        }
+
     </style>
 </head>
 <body class="bg-gradient-to-br from-indigo-800 to-purple-900 min-h-screen flex items-center justify-center p-4 dark-mode-gradient">
@@ -306,7 +346,15 @@
 
             <!-- Song Info -->
             <div class="text-center mb-3">
-                <h2 id="song-title" class="text-2xl font-bold truncate mb-1 text-primary">Song Title</h2>
+                <h2 id="song-title-container" class="text-2xl font-bold truncate mb-1 text-primary flex items-center justify-center">
+                    <span id="song-title">Song Title</span>
+                    <button id="like-song-btn" class="text-gray-400 hover:text-red-500 transition-colors duration-200 ml-3">
+                        <i class="far fa-heart text-xl"></i>
+                    </button>
+                    <div id="now-playing-title-visualizer" class="now-playing-title-visualizer hidden">
+                        <span class="bar"></span><span class="bar"></span><span class="bar"></span>
+                    </div>
+                </h2>
                 <p id="song-artist" class="text-lg text-secondary truncate">Artist Name</p>
             </div>
 
@@ -327,7 +375,7 @@
                 <button id="prev-btn" class="text-secondary hover:apply-accent-text transition-colors duration-200 focus:outline-none focus:apply-accent-ring p-2 rounded-full">
                     <i class="fas fa-backward text-3xl"></i>
                 </button>
-                <button id="play-pause-btn" class="apply-accent-color text-white p-4 rounded-full shadow-lg hover:apply-accent-hover transform hover:scale-105 transition-all duration-200 ease-in-out focus:outline-none focus:apply-accent-ring focus:ring-opacity-75">
+                <button id="play-pause-btn" class="apply-accent-color text-white p-4 rounded-full shadow-lg hover:apply-accent-hover transform hover:scale-105 transition-all duration-200 ease-in-out focus:outline-none focus:ring-2 focus:apply-accent-ring focus:ring-opacity-75">
                     <i id="play-pause-icon" class="fas fa-play text-3xl"></i>
                 </button>
                 <button id="next-btn" class="text-secondary hover:apply-accent-text transition-colors duration-200 focus:outline-none focus:apply-accent-ring p-2 rounded-full">
@@ -403,10 +451,13 @@
 
         <div id="library-tab-content" class="tab-content hidden">
             <h3 class="text-xl font-semibold text-center mb-4 apply-accent-text">Your Library</h3>
-            <div class="mb-4 text-center">
+            <div class="mb-4 text-center space-x-4">
                 <input type="file" id="add-files-input" accept="audio/*" multiple class="hidden">
                 <button id="add-files-btn" class="apply-accent-color hover:apply-accent-hover text-white font-bold py-2 px-4 rounded-lg shadow-md transition duration-200 ease-in-out">
                     <i class="fas fa-plus mr-2"></i>Add Local Files
+                </button>
+                <button id="clear-library-btn" class="bg-red-500 hover:bg-red-600 text-white font-bold py-2 px-4 rounded-lg shadow-md transition duration-200 ease-in-out">
+                    <i class="fas fa-trash-alt mr-2"></i>Clear Library
                 </button>
                 <p class="text-sm text-secondary mt-2">
                     Select audio files from your device. For security, direct folder access is not allowed.
@@ -431,6 +482,10 @@
                     <button id="create-new-playlist-btn" class="apply-accent-color hover:apply-accent-hover text-white font-bold py-2 px-4 rounded-lg shadow-md transition duration-200 ease-in-out">
                         <i class="fas fa-plus mr-2"></i>Create New Playlist
                     </button>
+                </div>
+                <!-- Search Box for Playlists -->
+                <div class="mb-4">
+                    <input type="text" id="playlist-search-input" placeholder="Search playlists by name..." class="w-full p-2 rounded-lg border border-border-color bg-secondary text-primary focus:outline-none focus:ring-2 focus:apply-accent-ring">
                 </div>
                 <ul id="playlists-list" class="space-y-3 max-h-64 overflow-y-auto pr-2 border border-border-color rounded-lg p-2 bg-secondary">
                     <li class="p-3 text-secondary text-center italic">No playlists created yet.</li>
@@ -468,6 +523,12 @@
 
         <div id="settings-tab-content" class="tab-content hidden">
             <h3 class="text-xl font-semibold text-center mb-4 apply-accent-text">Settings</h3>
+
+            <!-- User ID Display -->
+            <div class="flex items-center justify-between mb-6 p-4 border border-border-color rounded-lg bg-secondary">
+                <span class="text-primary font-medium">Your User ID:</span>
+                <span id="user-id-display" class="text-sm text-secondary font-mono break-all">Loading...</span>
+            </div>
 
             <!-- Theme / Dark Mode Toggle -->
             <div class="flex items-center justify-between mb-6 p-4 border border-border-color rounded-lg bg-secondary">
@@ -598,13 +659,34 @@
         </div>
     </div>
 
-    <script>
+    <!-- Custom Confirmation Modal -->
+    <div id="confirmation-modal" class="modal-overlay hidden">
+        <div class="modal-content w-full md:w-1/3 p-6 text-center">
+            <p id="confirmation-message" class="text-lg font-medium mb-6">Are you sure?</p>
+            <div class="flex justify-center space-x-4">
+                <button id="confirm-yes-btn" class="apply-accent-color hover:apply-accent-hover text-white font-bold py-2 px-4 rounded-lg shadow-md transition duration-200">Yes</button>
+                <button id="confirm-no-btn" class="bg-gray-300 hover:bg-gray-400 text-gray-800 font-bold py-2 px-4 rounded-lg shadow-md transition duration-200">No</button>
+            </div>
+        </div>
+    </div>
+
+    <script type="module">
+        // Firebase Imports
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+        import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getFirestore, collection, addDoc, getDocs, doc, setDoc, updateDoc, deleteDoc, onSnapshot, query, writeBatch } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+
+        // Firebase variables (will be initialized after auth)
+        let app;
+        let db;
+        let auth;
+        let userId = null; // Will store authenticated user's UID or a random ID for anonymous
+
         // Initial playlist is empty, user must add their own music
         let playlist = []; // This is the currently active playing queue
         let playlists = []; // Array to store created playlists (metadata only)
-
         let originalPlaylistOrder = []; // This is the full library of all added songs
-        let nextSongId = 1; // For assigning unique IDs to new songs, starts at 1
+
         let currentEditingPlaylistId = null; // To track which playlist is being edited
 
         // Get references to DOM elements
@@ -658,11 +740,13 @@
         const addFilesBtn = document.getElementById('add-files-btn');
         const addFilesInput = document.getElementById('add-files-input');
         const librarySearchInput = document.getElementById('library-search-input');
+        const clearLibraryBtn = document.getElementById('clear-library-btn'); // New element
 
         // Playlists Tab elements
         const playlistsMainView = document.getElementById('playlists-main-view');
         const createNewPlaylistBtn = document.getElementById('create-new-playlist-btn');
         const playlistsListEl = document.getElementById('playlists-list');
+        const playlistSearchInput = document.getElementById('playlist-search-input'); // New element
 
         // Playlist Detail View elements
         const playlistDetailView = document.getElementById('playlist-detail-view');
@@ -691,6 +775,12 @@
         // Playback speed elements
         const playbackSpeedBar = document.getElementById('playback-speed-bar');
         const playbackSpeedValue = document.getElementById('playback-speed-value');
+        const userIdDisplay = document.getElementById('user-id-display'); // New element for user ID
+
+        // Now Playing visualizer and like button elements
+        const nowPlayingTitleVisualizer = document.getElementById('now-playing-title-visualizer'); // New element
+        const likeSongBtn = document.getElementById('like-song-btn'); // New element
+        const likeSongIcon = likeSongBtn.querySelector('i'); // New element
 
         // Canvas for color extraction
         const colorCanvas = document.getElementById('color-canvas');
@@ -702,10 +792,42 @@
         let rightClickedSongId = null;
         let rightClickedPlaylistId = null; // To store the ID of the playlist right-clicked
 
+        // Custom Confirmation Modal elements
+        const confirmationModal = document.getElementById('confirmation-modal');
+        const confirmationMessage = document.getElementById('confirmation-message');
+        const confirmYesBtn = document.getElementById('confirm-yes-btn');
+        const confirmNoBtn = document.getElementById('confirm-no-btn');
+        let resolveConfirmationPromise; // To hold the resolve function for the confirmation modal promise
+
         let currentSongIndex = 0;
         let isPlaying = false;
         let isShuffling = false;
         let repeatMode = 0;
+
+        /**
+         * Shows a custom confirmation modal.
+         * @param {string} message - The message to display in the modal.
+         * @returns {Promise<boolean>} A promise that resolves to true if 'Yes' is clicked, false otherwise.
+         */
+        function showConfirmationModal(message) {
+            confirmationMessage.textContent = message;
+            confirmationModal.classList.remove('hidden');
+            return new Promise(resolve => {
+                resolveConfirmationPromise = resolve;
+            });
+        }
+
+        // Event listeners for the custom confirmation modal buttons
+        confirmYesBtn.addEventListener('click', () => {
+            confirmationModal.classList.add('hidden');
+            if (resolveConfirmationPromise) resolveConfirmationPromise(true);
+        });
+
+        confirmNoBtn.addEventListener('click', () => {
+            confirmationModal.classList.add('hidden');
+            if (resolveConfirmationPromise) resolveConfirmationPromise(false);
+        });
+
 
         /**
          * Converts RGB to HSL.
@@ -843,9 +965,9 @@
                 // Clamp lightness between 30 and 85, and shift it up.
                 const adjustedL = Math.min(85, Math.max(30, l + 30));
                 accentMainRgb = hslToRgb(h, s, adjustedL);
-                accentHoverRgb = hslToRgb(h, s, Math.max(0, adjustedL - 15)); // Darken from new main
-                accentBgLightRgb = hslToRgb(h, s, Math.min(100, adjustedL + 15)); // Lighten from new main (less intense light background for dark mode)
-                progressTrackRgb = hslToRgb(h, s, Math.min(100, adjustedL + 10)); // Slightly lighter for track
+                accentHoverRgb = hslToHsl(h, s, Math.max(0, adjustedL - 15)); // Darken from new main
+                accentBgLightRgb = hslToHsl(h, s, Math.min(100, adjustedL + 15)); // Lighten from new main (less intense light background for dark mode)
+                progressTrackRgb = hslToHsl(h, s, Math.min(100, adjustedL + 10)); // Slightly lighter for track
             } else {
                 // Original light mode logic
                 accentMainRgb = [r, g, b];
@@ -857,7 +979,7 @@
             // Set CSS custom properties directly on the root element
             root.style.setProperty('--accent-main', `rgb(${accentMainRgb.join(',')})`);
             root.style.setProperty('--accent-hover', `rgb(${accentHoverRgb.join(',')})`);
-            root.style.setProperty('--accent-bg-light', `rgb(${accentBgLightRgb.join(',')})`);
+            root.style.setProperty('--accent-bg-light', `rgb(${accentBgLightRb.join(',')})`);
             root.style.setProperty('--accent-rgb', `${accentMainRgb.join(',')}`); // For box-shadow rgba
             root.style.setProperty('--progress-track', `rgb(${progressTrackRgb.join(',')})`);
 
@@ -922,6 +1044,10 @@
                 durationEl.textContent = "0:00";
                 pauseSong(); // Ensure player is paused
                 await updateAccentColors(); // Update theme even if no song
+                nowPlayingTitleVisualizer.classList.add('hidden'); // Hide visualizer
+                likeSongIcon.classList.remove('fas', 'far'); // Reset like button
+                likeSongIcon.classList.add('far');
+                likeSongIcon.style.color = ''; // Remove inline color
                 return;
             }
 
@@ -931,6 +1057,17 @@
 
             // Always update album art source for display
             albumArtEl.src = newAlbumArtSrc;
+
+            // Update like button state
+            if (song.isLiked) {
+                likeSongIcon.classList.remove('far');
+                likeSongIcon.classList.add('fas');
+                likeSongIcon.style.color = 'red'; // Filled heart for liked songs
+            } else {
+                likeSongIcon.classList.remove('fas');
+                likeSongIcon.classList.add('far');
+                likeSongIcon.style.color = ''; // Empty heart for unliked songs
+            }
 
             // Trigger accent color update after updating album art source
             // The updateAccentColors function will use getDominantColor which
@@ -955,6 +1092,8 @@
 
             if (shouldPlayImmediately) {
                 playSong();
+            } else {
+                nowPlayingTitleVisualizer.classList.add('hidden'); // Hide visualizer if not playing
             }
 
             updatePlaylistUI();
@@ -971,6 +1110,7 @@
                         isPlaying = true;
                         playPauseIcon.classList.remove('fa-play');
                         playPauseIcon.classList.add('fa-pause');
+                        nowPlayingTitleVisualizer.classList.remove('hidden'); // Show visualizer
                         updatePlaylistUI(); // Update UI for "Now Playing" animation
                     }).catch(error => {
                         console.error("Error playing audio:", error);
@@ -990,6 +1130,7 @@
                 isPlaying = false;
                 playPauseIcon.classList.remove('fa-pause');
                 playPauseIcon.classList.add('fa-play');
+                nowPlayingTitleVisualizer.classList.add('hidden'); // Hide visualizer
                 updatePlaylistUI(); // Update UI for "Now Playing" animation
             }
         }
@@ -1100,7 +1241,7 @@
                     currentSongIndex = 0; // Reset if no song was playing
                 }
             }
-            renderPlaylist(); // Re-render playlist to reflect order
+            updatePlaylistUI(); // Re-render playlist to reflect order
         }
 
         /**
@@ -1240,7 +1381,7 @@
 
         /**
          * Handles the selection of local audio files.
-         * Extracts metadata using jsmediatags.
+         * Extracts metadata using jsmediatags and saves to Firestore.
          * @param {Event} event - The change event from the file input.
          */
         async function handleFiles(event) {
@@ -1250,16 +1391,18 @@
             llmResponseArea.textContent = "Adding songs to your library...";
             loadingIndicator.classList.remove('hidden');
 
-            const newSongs = [];
+            const libraryCollectionRef = collection(db, `artifacts/${__app_id}/users/${userId}/library`);
+
+            let songsAddedCount = 0;
             for (const file of files) {
                 if (file.type.startsWith('audio/')) {
                     const audioUrl = URL.createObjectURL(file);
-                    let title = file.name.replace(/\.(mp3|wav|ogg|aac|flac)$/i, ''); // Added more common audio extensions
+                    let title = file.name.replace(/\.(mp3|wav|ogg|aac|flac)$/i, '');
                     let artist = "Unknown Artist";
                     let albumArt = "https://placehold.co/192x192/cccccc/333333?text=No+Art";
                     let duration = 0;
+                    let isLiked = false;
 
-                    // Read ID3 tags using jsmediatags
                     await new Promise(resolve => {
                         jsmediatags.read(file, {
                             onSuccess: function(tag) {
@@ -1277,12 +1420,11 @@
                             },
                             onError: function(error) {
                                 console.warn(`Error reading ID3 tags for ${file.name}:`, error.type, error.info);
-                                resolve(); // Resolve anyway to proceed with file
+                                resolve();
                             }
                         });
                     });
 
-                    // Get audio duration using a temporary Audio object
                     try {
                         const tempAudio = new Audio(audioUrl);
                         await new Promise(resolve => {
@@ -1294,39 +1436,40 @@
                                 console.error("Error loading metadata for file duration:", file.name);
                                 resolve();
                             };
-                            // In case metadata doesn't load quickly, add a timeout
-                            setTimeout(resolve, 3000); // Max 3 seconds to get duration
+                            setTimeout(resolve, 3000);
                         });
                     } catch (e) {
                         console.error("Error creating temp audio for duration:", e);
                     }
 
-                    newSongs.push({
-                        id: nextSongId++,
-                        title: title,
-                        artist: artist,
-                        duration: duration || 180, // Default to 3 minutes if duration can't be read
-                        src: audioUrl,
-                        albumArt: albumArt
-                    });
+                    // Add song to Firestore
+                    try {
+                        // Firestore automatically generates an ID, so we don't need nextSongId++
+                        const docRef = await addDoc(libraryCollectionRef, {
+                            title: title,
+                            artist: artist,
+                            duration: duration || 180,
+                            src: audioUrl, // Object URL, only valid for current session
+                            albumArt: albumArt,
+                            isLiked: isLiked,
+                            timestamp: Date.now() // Add a timestamp for potential ordering
+                        });
+                        console.log("Document written with ID: ", docRef.id);
+                        songsAddedCount++;
+                    } catch (e) {
+                        console.error("Error adding document: ", e);
+                        llmResponseArea.textContent = `Failed to add "${title}" to library. Error: ${e.message}`;
+                        llmResponseArea.classList.add('text-center');
+                        loadingIndicator.classList.add('hidden');
+                        return; // Stop processing if a song fails to add
+                    }
                 }
             }
 
-            // Add new songs to the playlist and original order
-            originalPlaylistOrder.push(...newSongs); // Add to the master library list
-            
-            // If the current playing playlist is empty, or this is the first song added,
-            // set the main playlist to the originalPlaylistOrder and load the first song.
-            if (playlist.length === 0 && originalPlaylistOrder.length > 0) {
-                playlist = [...originalPlaylistOrder]; // Set current playing queue to full library
-                currentSongIndex = 0;
-                loadSong();
-            }
-
-            filterAndRenderLibrary(); // Re-render with potential search filter
+            llmResponseArea.textContent = `${songsAddedCount} song(s) added to your library!`;
+            llmResponseArea.classList.add('text-center');
             loadingIndicator.classList.add('hidden');
-            llmResponseArea.textContent = `${newSongs.length} song(s) added to your library!`;
-            llmResponseArea.classList.add('text-center'); // Re-center this message
+            // Data will be re-rendered by the onSnapshot listener
         }
 
         /**
@@ -1343,6 +1486,55 @@
                 );
             }
             renderSongsList(filteredSongs, playlistItemsEl); // Pass the filtered list and target UL
+        }
+
+        /**
+         * Clears all songs from the library.
+         */
+        async function clearLibrary() {
+            const confirmed = await showConfirmationModal("Are you sure you want to clear your entire music library? This will remove it from all playlists and cannot be undone.");
+            if (!confirmed) return;
+
+            llmResponseArea.textContent = "Clearing library...";
+            loadingIndicator.classList.remove('hidden');
+
+            const libraryCollectionRef = collection(db, `artifacts/${__app_id}/users/${userId}/library`);
+            const playlistsCollectionRef = collection(db, `artifacts/${__app_id}/users/${userId}/playlists`);
+
+            try {
+                // Delete all songs from library
+                const librarySnapshot = await getDocs(libraryCollectionRef);
+                const batch = writeBatch(db);
+                librarySnapshot.docs.forEach((doc) => {
+                    batch.delete(doc.ref);
+                });
+                await batch.commit();
+
+                // Delete all playlists
+                const playlistsSnapshot = await getDocs(playlistsCollectionRef);
+                const playlistBatch = writeBatch(db);
+                playlistsSnapshot.docs.forEach((doc) => {
+                    playlistBatch.delete(doc.ref);
+                });
+                await playlistBatch.commit();
+
+                // Reset local state (onSnapshot listeners will update these, but good for immediate feedback)
+                originalPlaylistOrder = [];
+                playlist = [];
+                playlists = [];
+                currentSongIndex = 0;
+                loadSong(); // Load empty state
+                // UI will be updated by onSnapshot listeners after deletion
+
+                llmResponseArea.textContent = "Your music library and playlists have been cleared.";
+                llmResponseArea.classList.add('text-center');
+            } catch (e) {
+                console.error("Error clearing library:", e);
+                llmResponseArea.textContent = `Failed to clear library. Error: ${e.message}`;
+                llmResponseArea.classList.add('text-center');
+            } finally {
+                loadingIndicator.classList.add('hidden');
+            }
         }
 
         /**
@@ -1430,7 +1622,7 @@
                 llmResponseArea.textContent = "An error occurred while fetching AI response. Please try again later.";
                 llmResponseArea.classList.add('text-center');
             } finally {
-                loadingIndicator.classList.add('hidden'); // Hide loading indicator
+                loadingIndicator.classList.add('hidden');
             }
         }
 
@@ -1456,7 +1648,7 @@
             } else if (tabId === 'playlists-tab-content') {
                 playlistsMainView.classList.remove('hidden');
                 playlistDetailView.classList.add('hidden'); // Ensure detail view is hidden
-                renderPlaylists();
+                filterAndRenderPlaylists(); // Use filtered render for playlists
             }
         }
 
@@ -1500,28 +1692,6 @@
                 dynamicAccentToggle.checked = false; // Default to off
             }
 
-            // Load saved playlists
-            const savedPlaylists = localStorage.getItem('mp3PlayerPlaylists');
-            if (savedPlaylists) {
-                playlists = JSON.parse(savedPlaylists);
-            }
-            // Load saved library (originalPlaylistOrder)
-            const savedLibrary = localStorage.getItem('mp3PlayerLibrary');
-            if (savedLibrary) {
-                originalPlaylistOrder = JSON.parse(savedLibrary);
-                // Re-create object URLs for local files upon load
-                originalPlaylistOrder.forEach(song => {
-                    if (song.file) { // Assuming 'file' property exists for original File object
-                        // This part is tricky. File objects cannot be directly stored or re-created from path.
-                        // For persistent local file playback, you'd need a more advanced API like File System Access API
-                        // or have the user re-select files on each load.
-                        // For now, we'll just keep the src as is, knowing it might break on refresh if not a data URI.
-                        // Data URIs (for album art) are fine.
-                    }
-                });
-            }
-
-
             // Apply colors based on initial dynamic accent state (which will then call applyStaticAccent or applyDynamicAccent)
             updateAccentColors(); // This is called initially, and then by loadSong after album art changes
 
@@ -1532,7 +1702,7 @@
         /**
          * Displays the custom context menu at the given coordinates.
          * @param {MouseEvent} e - The mouse event.
-         * @param {number} songId - The ID of the song that was right-clicked.
+         * @param {string} songId - The ID of the song that was right-clicked (Firestore doc ID).
          */
         function showContextMenu(e, songId) {
             e.preventDefault(); // Prevent default browser context menu
@@ -1569,7 +1739,7 @@
         /**
          * Displays the playlist context menu at the given coordinates.
          * @param {MouseEvent} e - The mouse event.
-         * @param {number} playlistId - The ID of the playlist that was right-clicked.
+         * @param {string} playlistId - The ID of the playlist that was right-clicked (Firestore doc ID).
          */
         function showPlaylistContextMenu(e, playlistId) {
             e.preventDefault(); // Prevent default browser context menu
@@ -1608,7 +1778,7 @@
          * Handles actions triggered by the custom context menu (for songs).
          * @param {Event} e - The click event.
          */
-        function handleContextMenuAction(e) {
+        async function handleContextMenuAction(e) {
             hideContextMenu(); // Hide menu immediately
 
             const action = e.target.closest('li')?.dataset.action;
@@ -1618,8 +1788,7 @@
             const clickedSong = playlist[clickedSongIndex]; // This is the song in the *current playing queue*
 
             // Find the song in the *master library* to ensure we're deleting the correct one
-            const songInLibraryIndex = originalPlaylistOrder.findIndex(s => s.id === rightClickedSongId);
-            const songInLibrary = originalPlaylistOrder[songInLibraryIndex];
+            const songInLibrary = originalPlaylistOrder.find(s => s.id === rightClickedSongId);
 
             if (!clickedSong && !songInLibrary) return; // Should not happen if rightClickedSongId is valid
 
@@ -1667,42 +1836,38 @@
                     updatePlaylistUI();
                     break;
                 case 'delete':
-                    if (confirm(`Are you sure you want to delete "${songInLibrary.title}" from your library? This will remove it from all playlists.`)) {
-                        // Remove from originalPlaylistOrder (master library)
-                        originalPlaylistOrder = originalPlaylistOrder.filter(s => s.id !== rightClickedSongId);
-                        localStorage.setItem('mp3PlayerLibrary', JSON.stringify(originalPlaylistOrder));
+                    const confirmed = await showConfirmationModal(`Are you sure you want to delete "${songInLibrary.title}" from your library? This will remove it from all playlists.`);
+                    if (!confirmed) return;
 
-                        // Remove from all saved playlists
-                        playlists.forEach(p => {
-                            p.songs = p.songs.filter(s => s.id !== rightClickedSongId);
-                        });
-                        localStorage.setItem('mp3PlayerPlaylists', JSON.stringify(playlists));
+                    llmResponseArea.textContent = `Deleting "${songInLibrary.title}"...`;
+                    loadingIndicator.classList.remove('hidden');
 
-                        // If the deleted song was in the current playing queue (playlist)
-                        if (clickedSongIndex !== -1) {
-                            const wasPlaying = (currentSongIndex === clickedSongIndex);
-                            const wasLastSongInQueue = (playlist.length === 1);
+                    try {
+                        // Delete from library (Firestore)
+                        await deleteDoc(doc(db, `artifacts/${__app_id}/users/${userId}/library`, rightClickedSongId));
 
-                            playlist.splice(clickedSongIndex, 1); // Remove from current playing queue
-
-                            if (wasPlaying) {
-                                if (wasLastSongInQueue) {
-                                    currentSongIndex = 0; // Reset index for empty playlist state
-                                    loadSong(); // Load empty state
-                                    pauseSong(); // Ensure player is stopped
-                                } else {
-                                    if (currentSongIndex >= playlist.length) {
-                                        currentSongIndex = 0;
-                                    }
-                                    loadSong(true);
-                                }
-                            } else if (clickedSongIndex < currentSongIndex) {
-                                currentSongIndex--;
+                        // Remove from all saved playlists (Firestore)
+                        const playlistsCollectionRef = collection(db, `artifacts/${__app_id}/users/${userId}/playlists`);
+                        const playlistsSnapshot = await getDocs(playlistsCollectionRef);
+                        const batch = writeBatch(db);
+                        playlistsSnapshot.docs.forEach(pDoc => {
+                            const pData = pDoc.data();
+                            const updatedSongs = pData.songs.filter(s => s.id !== rightClickedSongId);
+                            if (updatedSongs.length !== pData.songs.length) { // Only update if song was actually removed
+                                batch.update(doc(db, `artifacts/${__app_id}/users/${userId}/playlists`, pDoc.id), { songs: updatedSongs });
                             }
-                        }
+                        });
+                        await batch.commit();
+
+                        // Local state will be updated by onSnapshot listeners
                         llmResponseArea.textContent = `"${songInLibrary.title}" deleted from library and all playlists.`;
-                        updatePlaylistUI(); // Re-render all relevant lists
-                        renderPlaylists(); // Re-render playlist list to reflect song counts
+                        llmResponseArea.classList.add('text-center');
+                    } catch (e) {
+                        console.error("Error deleting song:", e);
+                        llmResponseArea.textContent = `Failed to delete "${songInLibrary.title}". Error: ${e.message}`;
+                        llmResponseArea.classList.add('text-center');
+                    } finally {
+                        loadingIndicator.classList.add('hidden');
                     }
                     break;
                 case 'getSongInfo':
@@ -1722,7 +1887,7 @@
          * Handles actions triggered by the playlist context menu.
          * @param {Event} e - The click event.
          */
-        function handlePlaylistContextMenuAction(e) {
+        async function handlePlaylistContextMenuAction(e) {
             hidePlaylistContextMenu(); // Hide menu immediately
 
             const action = e.target.closest('li')?.dataset.action;
@@ -1759,12 +1924,22 @@
                     showCreatePlaylistModal(clickedPlaylist.id);
                     break;
                 case 'delete-playlist':
-                    if (confirm(`Are you sure you want to delete playlist "${clickedPlaylist.name}"? This cannot be undone.`)) {
-                        playlists = playlists.filter(p => p.id !== rightClickedPlaylistId);
-                        localStorage.setItem('mp3PlayerPlaylists', JSON.stringify(playlists));
+                    const confirmed = await showConfirmationModal(`Are you sure you want to delete playlist "${clickedPlaylist.name}"? This cannot be undone.`);
+                    if (!confirmed) return;
+
+                    llmResponseArea.textContent = `Deleting playlist "${clickedPlaylist.name}"...`;
+                    loadingIndicator.classList.remove('hidden');
+
+                    try {
+                        await deleteDoc(doc(db, `artifacts/${__app_id}/users/${userId}/playlists`, rightClickedPlaylistId));
                         llmResponseArea.textContent = `Playlist "${clickedPlaylist.name}" deleted.`;
                         llmResponseArea.classList.add('text-center');
-                        renderPlaylists(); // Re-render the main playlist list
+                    } catch (e) {
+                        console.error("Error deleting playlist:", e);
+                        llmResponseArea.textContent = `Failed to delete playlist "${clickedPlaylist.name}". Error: ${e.message}`;
+                        llmResponseArea.classList.add('text-center');
+                    } finally {
+                        loadingIndicator.classList.add('hidden');
                     }
                     break;
             }
@@ -1922,24 +2097,32 @@
         addFilesBtn.addEventListener('click', () => addFilesInput.click()); // Trigger hidden input click
         addFilesInput.addEventListener('change', handleFiles);
         librarySearchInput.addEventListener('input', filterAndRenderLibrary); // New: Listen for input to filter
+        clearLibraryBtn.addEventListener('click', clearLibrary); // New: Clear library button
 
         // Event Listeners for Playlists Tab
         createNewPlaylistBtn.addEventListener('click', () => {
             showCreatePlaylistModal();
         });
+        playlistSearchInput.addEventListener('input', filterAndRenderPlaylists); // New: Listen for input to filter playlists
 
         /**
-         * Renders the list of created playlists.
+         * Renders the list of created playlists, with optional filtering.
          */
-        function renderPlaylists() {
+        function filterAndRenderPlaylists() {
             playlistsListEl.innerHTML = ''; // Clear existing list
+            const searchTerm = playlistSearchInput.value.toLowerCase();
 
-            if (playlists.length === 0) {
-                playlistsListEl.innerHTML = '<li class="p-3 text-secondary text-center italic">No playlists created yet.</li>';
+            let filteredPlaylists = playlists;
+            if (searchTerm) {
+                filteredPlaylists = playlists.filter(p => p.name.toLowerCase().includes(searchTerm));
+            }
+
+            if (filteredPlaylists.length === 0) {
+                playlistsListEl.innerHTML = '<li class="p-3 text-secondary text-center italic">No playlists found.</li>';
                 return;
             }
 
-            playlists.forEach(p => {
+            filteredPlaylists.forEach(p => {
                 const li = document.createElement('li');
                 li.className = 'p-3 rounded-lg bg-secondary hover:bg-gray-200 text-primary cursor-pointer transition-colors duration-200 flex justify-between items-center';
                 li.setAttribute('data-playlist-id', p.id); // Store playlist ID on the element
@@ -1965,9 +2148,10 @@
             });
         }
 
+
         /**
          * Shows the playlist detail view for a specific playlist.
-         * @param {number} playlistId - The ID of the playlist to display.
+         * @param {string} playlistId - The ID of the playlist to display (Firestore doc ID).
          */
         function showPlaylistDetail(playlistId) {
             const selectedPlaylist = playlists.find(p => p.id === playlistId);
@@ -1991,12 +2175,12 @@
         function backToPlaylists() {
             playlistDetailView.classList.add('hidden');
             playlistsMainView.classList.remove('hidden');
-            renderPlaylists(); // Re-render the main list
+            filterAndRenderPlaylists(); // Re-render the main list
         }
 
         /**
          * Plays the selected playlist.
-         * @param {number} playlistId - The ID of the playlist to play.
+         * @param {string} playlistId - The ID of the playlist to play (Firestore doc ID).
          */
         function playSelectedPlaylist(playlistId) {
             const selectedPlaylist = playlists.find(p => p.id === playlistId);
@@ -2017,7 +2201,7 @@
 
         /**
          * Shuffles and plays the selected playlist.
-         * @param {number} playlistId - The ID of the playlist to shuffle and play.
+         * @param {string} playlistId - The ID of the playlist to shuffle and play (Firestore doc ID).
          */
         function shuffleSelectedPlaylist(playlistId) {
             const selectedPlaylist = playlists.find(p => p.id === playlistId);
@@ -2045,7 +2229,7 @@
         // Playlist Creation Modal Functions
         /**
          * Shows the playlist creation/edit modal.
-         * @param {number|null} [editPlaylistId=null] - The ID of the playlist to edit, or null for new.
+         * @param {string|null} [editPlaylistId=null] - The ID of the playlist to edit (Firestore doc ID), or null for new.
          */
         function showCreatePlaylistModal(editPlaylistId = null) {
             createPlaylistModal.classList.remove('hidden');
@@ -2058,7 +2242,7 @@
                 const playlistToEdit = playlists.find(p => p.id === editPlaylistId);
                 if (playlistToEdit) {
                     playlistNameInput.value = playlistToEdit.name;
-                    preSelectedSongIds = playlistToEdit.songs.map(s => s.id);
+                    preSelectedSongIds = playlistToEdit.songs.map(s => s.id); // Songs in playlist are stored as full objects now
                 }
             }
 
@@ -2112,14 +2296,14 @@
             );
             // Re-render with existing checked state if editing
             const preSelectedSongIds = Array.from(createPlaylistSongsEl.querySelectorAll('input[type="checkbox"]:checked'))
-                                           .map(checkbox => parseInt(checkbox.dataset.songId));
+                                           .map(checkbox => checkbox.dataset.songId); // Get string IDs
             renderSongsForPlaylistCreation(filteredSongs, preSelectedSongIds);
         }
 
         /**
-         * Saves the new or edited playlist.
+         * Saves the new or edited playlist to Firestore.
          */
-        function saveNewPlaylist() {
+        async function saveNewPlaylist() {
             const playlistName = playlistNameInput.value.trim();
             if (!playlistName) {
                 llmResponseArea.textContent = "Please enter a name for your playlist.";
@@ -2128,7 +2312,7 @@
             }
 
             const selectedSongIds = Array.from(createPlaylistSongsEl.querySelectorAll('input[type="checkbox"]:checked'))
-                                       .map(checkbox => parseInt(checkbox.dataset.songId));
+                                       .map(checkbox => checkbox.dataset.songId); // Get string IDs
 
             if (selectedSongIds.length === 0) {
                 llmResponseArea.textContent = "Please select at least one song for your playlist.";
@@ -2139,38 +2323,51 @@
             // Ensure selected songs are full objects from originalPlaylistOrder
             const selectedSongs = originalPlaylistOrder.filter(song => selectedSongIds.includes(song.id));
 
-            if (currentEditingPlaylistId !== null) {
-                // Editing existing playlist
-                const existingPlaylistIndex = playlists.findIndex(p => p.id === currentEditingPlaylistId);
-                if (existingPlaylistIndex !== -1) {
-                    playlists[existingPlaylistIndex].name = playlistName;
-                    
-                    // Filter out existing songs from selectedSongs to avoid duplicates
-                    const existingSongIds = new Set(playlists[existingPlaylistIndex].songs.map(s => s.id));
-                    const uniqueNewSongs = selectedSongs.filter(song => !existingSongIds.has(song.id));
+            llmResponseArea.textContent = "Saving playlist...";
+            loadingIndicator.classList.remove('hidden');
 
-                    // Combine existing songs with unique new songs
-                    playlists[existingPlaylistIndex].songs = [...playlists[existingPlaylistIndex].songs, ...uniqueNewSongs];
+            const playlistsCollectionRef = collection(db, `artifacts/${__app_id}/users/${userId}/playlists`);
 
-                    llmResponseArea.textContent = `Playlist "${playlistName}" updated! Added ${uniqueNewSongs.length} new song(s).`;
+            try {
+                if (currentEditingPlaylistId !== null) {
+                    // Editing existing playlist
+                    const existingPlaylistDocRef = doc(db, `artifacts/${__app_id}/users/${userId}/playlists`, currentEditingPlaylistId);
+                    const existingPlaylist = playlists.find(p => p.id === currentEditingPlaylistId);
+
+                    // Combine existing songs with newly selected ones, ensuring no duplicates
+                    const combinedSongs = [...existingPlaylist.songs];
+                    const existingSongIdsInPlaylist = new Set(existingPlaylist.songs.map(s => s.id));
+
+                    selectedSongs.forEach(newSong => {
+                        if (!existingSongIdsInPlaylist.has(newSong.id)) {
+                            combinedSongs.push(newSong);
+                        }
+                    });
+
+                    await updateDoc(existingPlaylistDocRef, {
+                        name: playlistName,
+                        songs: combinedSongs // Save full song objects in playlist for simplicity
+                    });
+                    llmResponseArea.textContent = `Playlist "${playlistName}" updated!`;
+                } else {
+                    // Creating new playlist
+                    await addDoc(playlistsCollectionRef, {
+                        name: playlistName,
+                        songs: selectedSongs, // Save full song objects in playlist
+                        createdAt: Date.now()
+                    });
+                    llmResponseArea.textContent = `Playlist "${playlistName}" created with ${selectedSongs.length} songs!`;
                 }
-            } else {
-                // Creating new playlist
-                const newPlaylist = {
-                    id: Date.now(), // Simple unique ID
-                    name: playlistName,
-                    songs: selectedSongs
-                };
-                playlists.push(newPlaylist);
-                llmResponseArea.textContent = `Playlist "${playlistName}" created with ${selectedSongs.length} songs!`;
+                llmResponseArea.classList.add('text-center');
+                hideCreatePlaylistModal();
+                // UI will be updated by onSnapshot listener
+            } catch (e) {
+                console.error("Error saving playlist:", e);
+                llmResponseArea.textContent = `Failed to save playlist. Error: ${e.message}`;
+                llmResponseArea.classList.add('text-center');
+            } finally {
+                loadingIndicator.classList.add('hidden');
             }
-
-            localStorage.setItem('mp3PlayerPlaylists', JSON.stringify(playlists)); // Save to local storage
-
-            llmResponseArea.classList.add('text-center');
-            hideCreatePlaylistModal();
-            renderPlaylists(); // Update the playlists list on the main tab
-            switchTab('playlists-tab-content', tabPlaylistsBtn); // Switch to Playlists tab
         }
 
 
@@ -2209,6 +2406,48 @@
             e.stopPropagation(); // Prevent this click from immediately closing the dropdown via document listener
             aiFeaturesDropdownMenu.classList.toggle('hidden');
         });
+
+        // New: Like Song Button functionality
+        likeSongBtn.addEventListener('click', async () => {
+            const currentSong = playlist[currentSongIndex];
+            if (currentSong && userId) {
+                const newLikedStatus = !currentSong.isLiked;
+                llmResponseArea.textContent = newLikedStatus ? `Liking "${currentSong.title}"...` : `Unliking "${currentSong.title}".`;
+                loadingIndicator.classList.remove('hidden');
+
+                try {
+                    // Update the song's liked status in Firestore
+                    const songDocRef = doc(db, `artifacts/${__app_id}/users/${userId}/library`, currentSong.id);
+                    await updateDoc(songDocRef, { isLiked: newLikedStatus });
+
+                    // Update the local originalPlaylistOrder and current playlist
+                    currentSong.isLiked = newLikedStatus;
+                    const originalSong = originalPlaylistOrder.find(s => s.id === currentSong.id);
+                    if (originalSong) {
+                        originalSong.isLiked = newLikedStatus;
+                    }
+                    // Also update in any playlists it might be part of (this is more complex, but for simplicity,
+                    // we assume the library is the source of truth for song properties).
+                    // For a full update, you'd iterate through playlists and update the song object within them.
+                    // For now, onSnapshot for library will handle the update for the main library view.
+
+                    llmResponseArea.textContent = newLikedStatus ? `You liked "${currentSong.title}"!` : `You unliked "${currentSong.title}".`;
+                    llmResponseArea.classList.add('text-center');
+                    // UI will be updated by onSnapshot listener for library, and loadSong() for now playing.
+                    loadSong(); // Reload song to update UI (like button icon)
+                } catch (e) {
+                    console.error("Error updating like status:", e);
+                    llmResponseArea.textContent = `Failed to update like status. Error: ${e.message}`;
+                    llmResponseArea.classList.add('text-center');
+                } finally {
+                    loadingIndicator.classList.add('hidden');
+                }
+            } else {
+                llmResponseArea.textContent = "No song is playing to like or user not authenticated.";
+                llmResponseArea.classList.add('text-center');
+            }
+        });
+
 
         // Global click listener to hide context menu AND AI dropdown
         document.addEventListener('click', (e) => {
