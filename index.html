@@ -251,7 +251,8 @@
             overflow-y: auto; /* Make it scrollable */
             flex-grow: 1; /* Allow it to take up available space */
             min-height: 100px; /* Give it a minimum height */
-            max-height: 100%; /* Important for flex-grow to work correctly and ensure it doesn't push content out */
+            /* Removed max-height: 100%; to allow flex-grow to manage height */
+            height: 0; /* Important for flex items with overflow to work correctly */
         }
     </style>
 </head>
@@ -491,7 +492,7 @@
         // AI Features specific elements
         const aiFeaturesToggleBtn = document.getElementById('ai-features-toggle-btn');
         const aiFeaturesDropdownMenu = document.getElementById('ai-features-dropdown-menu');
-        const getSongInfoBtn = document.getElementById('get-song-info-btn');
+        const getSongInfoBtn = document = document.getElementById('get-song-info-btn');
         const getArtistBioBtn = document.getElementById('get-artist-bio-btn');
         const generateSongStoryBtn = document.getElementById('generate-song-story-btn');
         const suggestSimilarBtn = document.getElementById('suggest-similar-btn');
@@ -1171,7 +1172,8 @@
                 let chatHistory = [];
                 chatHistory.push({ role: "user", parts: [{ text: actualPrompt }] });
                 const payload = { contents: chatHistory };
-                const apiKey = ""; // Canvas will automatically provide the API key
+                // Your Gemini API Key is inserted here
+                const apiKey = "AIzaSyDP_IkTkLrAnsgLhYEx-PazIR1ieJOS2QY";
                 const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`;
 
                 const response = await fetch(apiUrl, {
@@ -1618,3 +1620,4 @@
     </script>
 </body>
 </html>
+
