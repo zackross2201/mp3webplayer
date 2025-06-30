@@ -382,6 +382,20 @@
             </ul>
         </div>
 
+        <!-- New Playlists Tab Content -->
+        <div id="playlists-tab-content" class="tab-content hidden">
+            <h3 class="text-xl font-semibold text-center mb-4 apply-accent-text">Your Playlists</h3>
+            <div class="mb-4 text-center">
+                <button id="create-new-playlist-btn" class="apply-accent-color hover:apply-accent-hover text-white font-bold py-2 px-4 rounded-lg shadow-md transition duration-200 ease-in-out">
+                    <i class="fas fa-plus mr-2"></i>Create New Playlist
+                </button>
+            </div>
+            <ul id="playlists-list" class="space-y-3 max-h-64 overflow-y-auto pr-2 border border-border-color rounded-lg p-2 bg-secondary">
+                <li class="p-3 text-secondary text-center italic">No playlists created yet.</li>
+            </ul>
+        </div>
+
+
         <div id="settings-tab-content" class="tab-content hidden">
             <h3 class="text-xl font-semibold text-center mb-4 apply-accent-text">Settings</h3>
 
@@ -440,6 +454,10 @@
             <button id="tab-library" class="tab-button flex-1 py-3 px-2 rounded-lg transition-colors duration-200 flex flex-col items-center mx-1">
                 <i class="fas fa-music text-xl mb-1"></i>
                 <span class="text-xs font-medium">Library</span>
+            </button>
+            <button id="tab-playlists" class="tab-button flex-1 py-3 px-2 rounded-lg transition-colors duration-200 flex flex-col items-center mx-1">
+                <i class="fas fa-list-music text-xl mb-1"></i>
+                <span class="text-xs font-medium">Playlists</span>
             </button>
             <button id="tab-settings" class="tab-button flex-1 py-3 px-2 rounded-lg transition-colors duration-200 flex flex-col items-center mx-1">
                 <i class="fas fa-cog text-xl mb-1"></i>
@@ -515,14 +533,20 @@
         const tabContents = document.querySelectorAll('.tab-content');
         const tabNowPlayingBtn = document.getElementById('tab-now-playing');
         const tabLibraryBtn = document.getElementById('tab-library');
+        const tabPlaylistsBtn = document.getElementById('tab-playlists'); // New
         const tabSettingsBtn = document.getElementById('tab-settings');
         const nowPlayingTabContent = document.getElementById('now-playing-tab-content');
         const libraryTabContent = document.getElementById('library-tab-content');
+        const playlistsTabContent = document.getElementById('playlists-tab-content'); // New
         const settingsTabContent = document.getElementById('settings-tab-content');
 
         // Library Tab elements
         const addFilesBtn = document.getElementById('add-files-btn');
         const addFilesInput = document.getElementById('add-files-input');
+
+        // Playlists Tab elements
+        const createNewPlaylistBtn = document.getElementById('create-new-playlist-btn');
+        const playlistsListEl = document.getElementById('playlists-list');
 
         // Settings Tab elements
         const darkModeToggle = document.getElementById('dark-mode-toggle');
@@ -1431,7 +1455,7 @@
                         // Remove from playlist
                         playlist.splice(clickedSongIndex, 1);
                         // Remove from original order
-                        originalPlaylistOrder = originalPlaylistOrder.filter(s => s.id !== clickedSong.id);
+                        originalPlaylistOrder = originalPlaylistOrder.filter(s => s.id !== clicked.id);
 
                         if (wasPlaying) {
                             if (wasLastSongInPlaylist) {
@@ -1610,11 +1634,19 @@
         // Event Listeners for Tabs
         tabNowPlayingBtn.addEventListener('click', () => switchTab('now-playing-tab-content', tabNowPlayingBtn));
         tabLibraryBtn.addEventListener('click', () => switchTab('library-tab-content', tabLibraryBtn));
+        tabPlaylistsBtn.addEventListener('click', () => switchTab('playlists-tab-content', tabPlaylistsBtn)); // New
         tabSettingsBtn.addEventListener('click', () => switchTab('settings-tab-content', tabSettingsBtn));
 
         // Event Listeners for Library Tab
         addFilesBtn.addEventListener('click', () => addFilesInput.click()); // Trigger hidden input click
         addFilesInput.addEventListener('change', handleFiles);
+
+        // Event Listeners for Playlists Tab (New)
+        createNewPlaylistBtn.addEventListener('click', () => {
+            llmResponseArea.textContent = "This feature is under development. Soon you'll be able to create and manage custom playlists!";
+            llmResponseArea.classList.add('text-center');
+        });
+
 
         // Event Listeners for Settings Tab
         darkModeToggle.addEventListener('change', () => {
