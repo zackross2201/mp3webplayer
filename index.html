@@ -311,7 +311,7 @@
 
             <!-- Gemini AI Features Button -->
             <div class="relative flex justify-center space-x-4 mb-4 z-10">
-                <button id="ai-features-toggle-btn" class="bg-purple-600 hover:bg-purple-700 text-white font-bold py-2 px-4 rounded-lg shadow-md transition duration-200 ease-in-out transform hover:-translate-y-1 hover:shadow-lg focus:outline-none focus:ring-2 focus:ring-purple-400 focus:ring-opacity-50">
+                <button id="ai-features-toggle-btn" class="apply-accent-color hover:apply-accent-hover text-white font-bold py-2 px-4 rounded-lg shadow-md transition duration-200 ease-in-out transform hover:-translate-y-1 hover:shadow-lg focus:outline-none focus:ring-2 focus:apply-accent-ring focus:ring-opacity-50">
                     <i class="fas fa-magic mr-2"></i>AI Features <i class="fas fa-chevron-down ml-2"></i>
                 </button>
                 <div id="ai-features-dropdown-menu" class="absolute top-full mt-2 w-48 bg-white dark:bg-gray-700 rounded-lg shadow-xl hidden overflow-hidden border border-border-color">
@@ -492,7 +492,7 @@
         // AI Features specific elements
         const aiFeaturesToggleBtn = document.getElementById('ai-features-toggle-btn');
         const aiFeaturesDropdownMenu = document.getElementById('ai-features-dropdown-menu');
-        const getSongInfoBtn = document = document.getElementById('get-song-info-btn');
+        const getSongInfoBtn = document.getElementById('get-song-info-btn');
         const getArtistBioBtn = document.getElementById('get-artist-bio-btn');
         const generateSongStoryBtn = document.getElementById('generate-song-story-btn');
         const suggestSimilarBtn = document.getElementById('suggest-similar-btn');
@@ -1560,7 +1560,8 @@
 
         accentColorButtons.forEach(button => {
             button.addEventListener('click', () => {
-                const color = button.dataset.accent-color;
+                // Fix: Access dataset properties in camelCase
+                const color = button.dataset.accentColor;
                 localStorage.setItem('mp3PlayerAccentColor', color); // Save selected static color
                 updateAccentColors(); // Apply colors (will use static if dynamic is off)
             });
@@ -1620,4 +1621,3 @@
     </script>
 </body>
 </html>
-
